@@ -1,0 +1,49 @@
+"""``proxmox-aiops cluster ...`` sub-commands (read-only)."""
+
+from __future__ import annotations
+
+import typer
+from rich.console import Console
+from rich.table import Table
+
+from proxmox_aiops.cli._common import NodeOption, TargetOption, cli_errors, get_connection
+from proxmox_aiops.ops import cluster as cl
+
+cluster_app = typer.Typer(help="Cluster, node, and task operations.", no_args_is_help=True)
+console = Console()
+
+
+@cluster_app.command("nodes")
+@cli_errors
+def node_list(target: TargetOption = None) -> None:
+    """List cluster nodes (status, cpu, mem, uptime)."""
+    conn, _ = get_connection(target)
+    table = Table(title="Proxmox Nodes")
+    for col in ("node", "status", "cpu", "maxcpu", "mem", "maxmem", "uptime"):
+        table.add_column(col)
+    for n in cl.list_nodes(conn):
+        table.add_row(
+            n["node"], n["status"], str(n.get("cpu")), str(n.get("maxcpu")),
+            str(n.get("mem")), str(n.get("maxmem")), str(n.get("uptime")),
+        )
+    console.print(table)
+
+
+@cluster_app.command("status")
+@cli_errors
+def cluster_status(target: TargetOption = None) -> None:
+    """Show cluster membership + quorum."""
+    conn, _ = get_connection(target)
+    for item in cl.cluster_status(conn):
+        console.print(f"  [cyan]{item['type']}[/] {item['name']} "
+                      f"online={item.get('online')} quorate={item.get('quorate')}")
+
+
+@cluster_app.command("task-status")
+@cli_errors
+def task_status(upid: str, target: TargetOption = None, node: NodeOption = None) -> None:
+    """Poll an async task (clone/migrate/backup) by its UPID."""
+    conn, _ = get_connection(target)
+    info = cl.get_task_status(conn, upid, node=node)
+    for k, v in info.items():
+        console.print(f"  [cyan]{k}:[/] {v}")

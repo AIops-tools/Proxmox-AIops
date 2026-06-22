@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+
+# Virtual envs / build
+.venv/
+dist/
+build/
+
+# uv
+uv.lock
+
+# Local config / secrets (never commit)
+*.env
+.env
+config.yaml
+
+# OS
+.DS_Store
