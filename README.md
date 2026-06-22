@@ -51,4 +51,8 @@ risk-tier gate, and audit logging. Destructive CLI commands (`vm stop`,
 double confirmation and support `--dry-run`. API-returned text is run through a
 prompt-injection sanitizer.
 
+## Contributing & feature requests
+
+This is a preview — coverage is intentionally focused. **Missing a device, action, or feature you need?** Open an issue or pull request at [github.com/AIops-tools/Proxmox-AIops](https://github.com/AIops-tools/Proxmox-AIops/issues) — feature requests, contributions, and comments are all welcome.
+
 License: MIT.
