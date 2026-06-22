@@ -2,7 +2,7 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.AIops-tools/proxmox-aiops",
   "title": "Proxmox AIops",
-  "description": "Governed Proxmox VE VM/container lifecycle operations — 23 MCP tools with a built-in audit/budget/undo/risk-tier harness.",
+  "description": "Governed Proxmox VE VM/container ops — 23 MCP tools with audit, budget, undo & risk-tier guards.",
   "repository": {
     "url": "https://github.com/AIops-tools/Proxmox-AIops",
     "source": "github"
