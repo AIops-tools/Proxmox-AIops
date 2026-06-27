@@ -15,6 +15,8 @@ from proxmox_aiops.cli._common import (
     dry_run_print,
     get_connection,
 )
+from proxmox_aiops.ops import agent as ag
+from proxmox_aiops.ops import disk as dk
 from proxmox_aiops.ops import vm_lifecycle as vl
 
 vm_app = typer.Typer(help="QEMU VM lifecycle operations.", no_args_is_help=True)
@@ -248,3 +250,56 @@ def vm_snapshot_rollback(
     conn, _ = get_connection(target)
     result = vl.rollback_snapshot(conn, vmid, name, node=node)
     console.print(f"[green]Rolled VM {vmid} back to '{name}'[/] (task: {result['task']})")
+
+
+@vm_app.command("resize-disk")
+@cli_errors
+def vm_resize_disk(
+    vmid: int,
+    disk: str = typer.Option(..., "--disk", help="Disk key, e.g. scsi0"),
+    size: str = typer.Option(..., "--size", help="'+10G' increment or larger absolute"),
+    target: TargetOption = None,
+    node: NodeOption = None,
+    dry_run: DryRunOption = False,
+) -> None:
+    """Grow a VM disk (grow-only — shrink is refused)."""
+    if dry_run:
+        dry_run_print(operation="resize_disk", api_call=f"qemu({vmid}).resize.put()",
+                      parameters={"disk": disk, "size": size})
+        return
+    conn, _ = get_connection(target)
+    dk.resize_disk(conn, vmid, disk, size, node=node)
+    console.print(f"[green]Resized {disk} on VM {vmid}[/] to {size}")
+
+
+@vm_app.command("move-disk")
+@cli_errors
+def vm_move_disk(
+    vmid: int,
+    disk: str = typer.Option(..., "--disk", help="Disk key, e.g. scsi0"),
+    storage: str = typer.Option(..., "--storage", help="Destination storage id"),
+    delete: bool = typer.Option(False, "--delete", help="Remove source copy after move"),
+    target: TargetOption = None,
+    node: NodeOption = None,
+    dry_run: DryRunOption = False,
+) -> None:
+    """Move a VM disk to another storage (async — poll with 'cluster task-status')."""
+    if dry_run:
+        dry_run_print(operation="move_disk", api_call=f"qemu({vmid}).move_disk.post()",
+                      parameters={"disk": disk, "storage": storage, "delete": delete})
+        return
+    conn, _ = get_connection(target)
+    result = dk.move_disk(conn, vmid, disk, storage, node=node, delete=delete)
+    console.print(f"[green]Moving {disk} on VM {vmid} → {storage}[/] (task: {result['task']})")
+
+
+@vm_app.command("agent-ping")
+@cli_errors
+def vm_agent_ping(vmid: int, target: TargetOption = None, node: NodeOption = None) -> None:
+    """Ping a VM's QEMU guest agent (responsive / not)."""
+    conn, _ = get_connection(target)
+    result = ag.agent_ping(conn, vmid, node=node)
+    state = "responsive" if result["responsive"] else "not responding"
+    console.print(f"  [cyan]VM {vmid} guest agent:[/] {state}")
+    if result.get("message"):
+        console.print(f"  {result['message']}")

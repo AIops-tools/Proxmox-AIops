@@ -1,57 +1,62 @@
 """Configuration management for Proxmox AIops.
 
-Loads connection targets and settings from a YAML config file plus
-environment variables. Secrets (API token secret / password) are NEVER
-stored in the config file — always sourced from the ``.env`` file or
-environment, with .env secret loading and chmod 600 checks.
+Loads connection targets and settings from a YAML config file. Secrets (API
+token secret / login password) are NEVER stored in the config file and never
+on disk in plaintext: they live in the encrypted store
+``~/.proxmox-aiops/secrets.enc`` (see :mod:`proxmox_aiops.secretstore`). For
+backward compatibility a legacy plaintext env var
+(``PROXMOX_<TARGET>_SECRET``) is still honoured as a fallback, with a warning
+nudging migration to the encrypted store.
 """
 
 from __future__ import annotations
 
 import logging
 import os
-import stat
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
 import yaml
-from dotenv import load_dotenv
+
+from proxmox_aiops.secretstore import SecretStoreError, get_secret, has_store
 
 CONFIG_DIR = Path.home() / ".proxmox-aiops"
 CONFIG_FILE = CONFIG_DIR / "config.yaml"
 ENV_FILE = CONFIG_DIR / ".env"
 
+# Legacy env-var prefix/suffix; also used by the migration helper.
+SECRET_ENV_PREFIX = "PROXMOX_"
+SECRET_ENV_SUFFIX = "_SECRET"
+
 _log = logging.getLogger("proxmox-aiops.config")
-
-# Load secrets from .env (if present) before any config access.
-load_dotenv(ENV_FILE)
-
-
-def _check_env_permissions() -> None:
-    """Warn if the .env file is readable beyond the owner (should be 600)."""
-    if not ENV_FILE.exists():
-        return
-    try:
-        mode = ENV_FILE.stat().st_mode
-        if mode & (stat.S_IRWXG | stat.S_IRWXO):
-            _log.warning(
-                "Security warning: %s has permissions %s (should be 600). "
-                "Run: chmod 600 %s",
-                ENV_FILE,
-                oct(stat.S_IMODE(mode)),
-                ENV_FILE,
-            )
-    except OSError:
-        pass
-
-
-_check_env_permissions()
 
 
 def _secret_env_key(name: str) -> str:
-    """Per-target secret env var name, e.g. PROXMOX_PVE_LAB_SECRET."""
-    return f"PROXMOX_{name.upper().replace('-', '_')}_SECRET"
+    """Legacy per-target secret env var name, e.g. PROXMOX_PVE_LAB_SECRET."""
+    return f"{SECRET_ENV_PREFIX}{name.upper().replace('-', '_')}{SECRET_ENV_SUFFIX}"
+
+
+def _resolve_secret(name: str) -> str:
+    """Return a target's secret: encrypted store first, then legacy env var."""
+    if has_store():
+        try:
+            return get_secret(name)
+        except SecretStoreError:
+            pass  # fall through to legacy env var
+    legacy = os.environ.get(_secret_env_key(name))
+    if legacy:
+        _log.warning(
+            "Using plaintext env var %s. Migrate to the encrypted store with "
+            "'proxmox-aiops secret migrate'.",
+            _secret_env_key(name),
+        )
+        return legacy
+    raise OSError(
+        f"No secret for target '{name}'. Add one with "
+        f"'proxmox-aiops secret set {name}' (stored encrypted), or run "
+        f"'proxmox-aiops init'."
+    )
 
 
 @dataclass(frozen=True)
@@ -75,14 +80,7 @@ class TargetConfig:
 
     @property
     def secret(self) -> str:
-        env_key = _secret_env_key(self.name)
-        value = os.environ.get(env_key, "")
-        if not value:
-            raise OSError(
-                f"Secret not found. Set environment variable: {env_key} "
-                f"(in {ENV_FILE}, chmod 600)."
-            )
-        return value
+        return _resolve_secret(self.name)
 
 
 @dataclass(frozen=True)

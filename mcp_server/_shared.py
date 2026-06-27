@@ -24,6 +24,9 @@ from proxmox_aiops.connection import ConnectionManager
 from proxmox_aiops.governance import sanitize
 from proxmox_aiops.ops.lxc import ContainerNotFoundError
 from proxmox_aiops.ops.storage import NodeRequiredError
+from proxmox_aiops.ops.vm_lifecycle import (
+    NodeRequiredError as VMNodeRequiredError,
+)
 from proxmox_aiops.ops.vm_lifecycle import VMNotFoundError
 
 logger = logging.getLogger(__name__)
@@ -43,6 +46,7 @@ def _safe_error(exc: Exception, tool: str) -> str:
         ConnectionError,
         VMNotFoundError,
         NodeRequiredError,
+        VMNodeRequiredError,
         ContainerNotFoundError,
     )
     if isinstance(exc, _passthrough):

@@ -1,8 +1,8 @@
 ---
 name: proxmox-aiops
 description: >
-  Use this skill whenever the user needs to manage VMs and containers on Proxmox VE — list/inspect/configure VMs, power and lifecycle (start/stop/shutdown/reboot/reconfigure/clone/delete/migrate), snapshots (create/delete/list/rollback), LXC containers (list/start/stop), cluster/node status, async task polling, and storage listing.
-  Always use this skill for "list proxmox vms", "start proxmox vm", "stop proxmox vm", "proxmox snapshot", "proxmox vm status", "migrate proxmox vm", "proxmox container", or "list proxmox storage" when the context is explicitly Proxmox / Proxmox VE / PVE.
+  Use this skill whenever the user needs to manage VMs and containers on Proxmox VE — list/inspect/configure VMs, power and lifecycle (start/stop/shutdown/reboot/reconfigure/clone/delete/migrate), snapshots (create/delete/list/rollback), disk grow/move, vzdump backups (create/list/restore), LXC containers (list/start/stop), cluster/node status, cluster resource inventory, async task polling + logs, free-VMID lookup, HA status, resource pools, firewall inspection, guest-agent ping, and storage listing.
+  Always use this skill for "list proxmox vms", "start proxmox vm", "stop proxmox vm", "proxmox snapshot", "proxmox backup", "restore proxmox vm", "resize proxmox disk", "proxmox vm status", "migrate proxmox vm", "proxmox container", "proxmox ha", "proxmox pool", "proxmox firewall", or "list proxmox storage" when the context is explicitly Proxmox / Proxmox VE / PVE.
   Do NOT use for non-Proxmox hypervisors, Kubernetes, or cloud providers.
   Preview — broad coverage of common Proxmox operations, with a built-in governance harness (audit, policy, token budget, undo, risk-tiers).
 installer:
@@ -26,7 +26,7 @@ compatibility: >
 
 > **Disclaimer**: This is a community-maintained open-source project and is **not affiliated with, endorsed by, or sponsored by Proxmox Server Solutions GmbH.** "Proxmox" is a trademark of its owner. Source code is publicly auditable at [github.com/AIops-tools/Proxmox-AIops](https://github.com/AIops-tools/Proxmox-AIops) under the MIT license.
 
-Governed VM and container lifecycle operations for Proxmox VE — **23 MCP tools**, every one wrapped with the bundled `@governed_tool` harness: a local unified audit log under `~/.proxmox-aiops/`, policy engine, token/runaway budget guard, undo-token recording, and graduated-autonomy risk tiers.
+Governed VM and container lifecycle operations for Proxmox VE — **39 MCP tools**, every one wrapped with the bundled `@governed_tool` harness: a local unified audit log under `~/.proxmox-aiops/`, policy engine, token/runaway budget guard, undo-token recording, and graduated-autonomy risk tiers.
 
 > **Standalone**: the governance harness is bundled in the package (`proxmox_aiops.governance`) — proxmox-aiops has no external skill-family dependency. Preview: broad coverage of common Proxmox operations, not yet exhaustive.
 
@@ -36,8 +36,14 @@ Governed VM and container lifecycle operations for Proxmox VE — **23 MCP tools
 |----------|-------|:-----:|:-------------:|
 | **VM Lifecycle** | list, get, config, start, stop, shutdown, reboot, reconfigure, clone, delete, migrate | 11 | 3 read / 8 write |
 | **Snapshots** | create, delete, list, rollback | 4 | 1 read / 3 write |
+| **Disk** | resize (grow-only), move | 2 | 0 read / 2 write |
+| **Backups (vzdump)** | create, list, restore | 3 | 1 read / 2 write |
 | **LXC Containers** | list, start, stop | 3 | 1 read / 2 write |
-| **Cluster / Tasks** | node list, cluster status, async task poll | 3 | 3 read |
+| **Cluster / Tasks** | node list, cluster status, task poll, cluster resources, node status, task log, next vmid | 7 | 7 read |
+| **HA** | status, resource list | 2 | 2 read |
+| **Pools** | list, members | 2 | 2 read |
+| **Firewall** | vm rules, cluster status | 2 | 2 read |
+| **Guest Agent** | ping | 1 | 1 read |
 | **Storage** | list pools, list content | 2 | 2 read |
 
 ## Quick Install
@@ -52,9 +58,15 @@ proxmox-aiops doctor
 - List/inspect Proxmox QEMU VMs and their config
 - Power ops: start, hard-stop, graceful shutdown, reboot
 - Reconfigure (cores/memory), clone, delete, or migrate a VM between nodes
+- Grow a VM disk (grow-only — shrink is refused) or move it to another storage
+- Create, list, and restore vzdump backups
 - Create / delete / list / roll back VM snapshots
 - Manage LXC containers (list, start, stop)
-- Inspect cluster nodes, quorum, and poll async tasks (clone/migrate) by UPID
+- Inspect cluster nodes, quorum, the `/cluster/resources` inventory, node load/mem, and poll async tasks + fetch their logs by UPID; get a free VMID
+- Check HA status / HA-managed resources (handles "HA not configured" gracefully)
+- List resource pools and their members
+- Inspect VM firewall rules and the cluster firewall enable state (read-only)
+- Ping a VM's QEMU guest agent
 - List storage pools and their content (ISOs, disk images, backups)
 
 **Do NOT use when** the target is not Proxmox VE (other hypervisors, Kubernetes, or cloud providers are out of scope for this skill).
@@ -83,7 +95,7 @@ proxmox-aiops doctor
 | Cloud models (Claude, GPT) | Either | MCP gives structured JSON I/O |
 | Automated pipelines | **MCP** | type-safe parameters, audited |
 
-## MCP Tools (23 — 8 read, 15 write)
+## MCP Tools (39 — 22 read, 17 write)
 
 | Category | Tools | R/W |
 |----------|-------|:---:|
@@ -91,12 +103,19 @@ proxmox-aiops doctor
 | | `vm_start`, `vm_stop`, `vm_shutdown`, `vm_reboot`, `vm_reconfigure`, `vm_clone`, `vm_delete`, `vm_migrate` | Write |
 | Snapshots | `vm_list_snapshots` | Read |
 | | `vm_snapshot_create`, `vm_snapshot_delete`, `vm_snapshot_rollback` | Write |
+| Disk | `vm_resize_disk` (grow-only), `vm_move_disk` | Write |
+| Backups | `backup_list` | Read |
+| | `vm_backup`, `backup_restore` (high) | Write |
 | LXC Containers | `ct_list` | Read |
 | | `ct_start`, `ct_stop` | Write |
-| Cluster / Tasks | `node_list`, `cluster_status`, `task_status` | Read |
+| Cluster / Tasks | `node_list`, `cluster_status`, `task_status`, `cluster_resources`, `node_status`, `task_log`, `next_vmid` | Read |
+| HA | `ha_status`, `ha_resource_list` | Read |
+| Pools | `pool_list`, `pool_members` | Read |
+| Firewall | `vm_firewall_rules_list`, `cluster_firewall_status` | Read |
+| Guest Agent | `vm_agent_ping` | Read |
 | Storage | `storage_list`, `storage_content` | Read |
 
-**Harness features that light up**: write tools with a clean inverse (`vm_start`/`vm_stop`/`vm_shutdown`/`vm_reconfigure`/`vm_clone`/`vm_migrate`/`vm_snapshot_create`/`ct_start`/`ct_stop`) pass an `undo=` lambda so the harness records an inverse descriptor (with `_undo_id`) to the undo store — `vm_reconfigure` captures the prior cores/memory, `vm_clone`'s inverse is `vm_delete(newid)`, `vm_migrate`'s is migrate-back. Irreversible writes (`vm_delete`, `vm_snapshot_rollback`) declare no undo and are tagged `risk_level=high`. All 23 tools are audit-logged under `~/.proxmox-aiops/` and pass through the policy pre-check + budget/runaway guard + graduated risk-tier gate. Proxmox writes are async (return a task UPID) — poll with `task_status` instead of re-issuing (the runaway breaker backs this up).
+**Harness features that light up**: write tools with a clean inverse (`vm_start`/`vm_stop`/`vm_shutdown`/`vm_reconfigure`/`vm_clone`/`vm_migrate`/`vm_snapshot_create`/`vm_move_disk`/`ct_start`/`ct_stop`) pass an `undo=` lambda so the harness records an inverse descriptor (with `_undo_id`) to the undo store — `vm_reconfigure` captures the prior cores/memory, `vm_clone`'s inverse is `vm_delete(newid)`, `vm_migrate`'s is migrate-back, `vm_move_disk`'s is move-back to the captured source storage. `backup_restore` records a `vm_delete` inverse **only** when it restored into a free VMID (a forced overwrite is destructive and declares none). Irreversible writes (`vm_delete`, `vm_snapshot_rollback`, `backup_restore` with `force`) declare no undo and are tagged `risk_level=high`; `vm_resize_disk` is grow-only and refuses shrink before any API call. All 39 tools are audit-logged under `~/.proxmox-aiops/` and pass through the policy pre-check + budget/runaway guard + graduated risk-tier gate. Proxmox writes are async (return a task UPID) — poll with `task_status` (and read lines with `task_log`) instead of re-issuing (the runaway breaker backs this up).
 
 ## CLI Quick Reference
 
@@ -105,13 +124,32 @@ proxmox-aiops vm list [--target <t>] [--node <n>]
 proxmox-aiops vm get <vmid> [--node <n>]
 proxmox-aiops vm start <vmid> [--node <n>]
 proxmox-aiops vm stop <vmid> [--dry-run]              # double confirm
+proxmox-aiops vm resize-disk <vmid> --disk scsi0 --size +10G   # grow-only
+proxmox-aiops vm move-disk <vmid> --disk scsi0 --storage ceph [--delete]
+proxmox-aiops vm agent-ping <vmid>
 proxmox-aiops vm snapshot-create <vmid> --name <snap>
 proxmox-aiops vm snapshot-delete <vmid> --name <snap> [--dry-run]   # double confirm
 proxmox-aiops vm snapshot-list <vmid>
+proxmox-aiops backup create <vmid> --storage <s> [--mode snapshot]
+proxmox-aiops backup list <storage> [--vmid <id>]
+proxmox-aiops backup restore <vmid> --archive <volid> --storage <s> [--force] [--dry-run]  # double confirm
+proxmox-aiops cluster resources [--type vm|node|storage]
+proxmox-aiops cluster node-status <node>
+proxmox-aiops cluster task-log <upid>
+proxmox-aiops cluster next-vmid
+proxmox-aiops ha status
+proxmox-aiops pool list
+proxmox-aiops firewall vm-rules <vmid>
 proxmox-aiops storage list [--node <n>]
+proxmox-aiops init                                    # onboarding wizard (encrypted creds)
+proxmox-aiops secret set <target>                     # manage encrypted secret store
 proxmox-aiops doctor
 proxmox-aiops mcp                                      # start MCP server (stdio)
 ```
+
+> Credentials are managed by the `proxmox-aiops init` onboarding wizard and the
+> `proxmox-aiops secret` commands, which back an encrypted secret store (no
+> plaintext passwords in `config.yaml`).
 
 ## Troubleshooting
 

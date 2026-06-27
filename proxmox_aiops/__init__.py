@@ -6,4 +6,4 @@ bundled under ``proxmox_aiops.governance`` — this package has no external
 skill-family dependency. Preview: not yet full-coverage.
 """
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"

@@ -22,10 +22,23 @@ EXPECTED_TOOLS = {
     "vm_snapshot_create", "vm_snapshot_delete", "vm_snapshot_rollback", "vm_list_snapshots",
     # cluster / tasks
     "node_list", "cluster_status", "task_status",
+    "cluster_resources", "node_status", "task_log", "next_vmid",
     # LXC containers
     "ct_list", "ct_start", "ct_stop",
     # storage
     "storage_list", "storage_content",
+    # backups
+    "vm_backup", "backup_list", "backup_restore",
+    # disk
+    "vm_resize_disk", "vm_move_disk",
+    # HA
+    "ha_status", "ha_resource_list",
+    # pools
+    "pool_list", "pool_members",
+    # firewall
+    "vm_firewall_rules_list", "cluster_firewall_status",
+    # agent
+    "vm_agent_ping",
 }
 
 WRITE_TOOLS_WITH_UNDO = {
@@ -53,6 +66,12 @@ def test_all_modules_import():
         "proxmox_aiops.ops.storage",
         "proxmox_aiops.ops.cluster",
         "proxmox_aiops.ops.lxc",
+        "proxmox_aiops.ops.backup",
+        "proxmox_aiops.ops.disk",
+        "proxmox_aiops.ops.ha",
+        "proxmox_aiops.ops.pool",
+        "proxmox_aiops.ops.firewall",
+        "proxmox_aiops.ops.agent",
         "proxmox_aiops.cli",
         "proxmox_aiops.cli._root",
         "proxmox_aiops.cli._common",
@@ -60,6 +79,10 @@ def test_all_modules_import():
         "proxmox_aiops.cli.cluster",
         "proxmox_aiops.cli.lxc",
         "proxmox_aiops.cli.storage",
+        "proxmox_aiops.cli.backup",
+        "proxmox_aiops.cli.ha",
+        "proxmox_aiops.cli.pool",
+        "proxmox_aiops.cli.firewall",
         "proxmox_aiops.cli.doctor",
         "mcp_server.server",
         "mcp_server._shared",
@@ -67,6 +90,12 @@ def test_all_modules_import():
         "mcp_server.tools.cluster",
         "mcp_server.tools.lxc",
         "mcp_server.tools.storage",
+        "mcp_server.tools.backup",
+        "mcp_server.tools.disk",
+        "mcp_server.tools.ha",
+        "mcp_server.tools.pool",
+        "mcp_server.tools.firewall",
+        "mcp_server.tools.agent",
     ):
         importlib.import_module(name)
 
@@ -75,7 +104,7 @@ def test_all_modules_import():
 def test_version():
     import proxmox_aiops
 
-    assert proxmox_aiops.__version__ == "0.1.0"
+    assert proxmox_aiops.__version__ == "0.2.0"
 
 
 @pytest.mark.unit
@@ -85,7 +114,8 @@ def test_cli_app_builds_and_help_works():
     runner = CliRunner()
     result = runner.invoke(app, ["--help"])
     assert result.exit_code == 0
-    for sub in ("vm", "ct", "cluster", "storage", "doctor", "mcp"):
+    for sub in ("vm", "ct", "cluster", "storage", "backup", "ha", "pool",
+                "firewall", "doctor", "mcp"):
         assert sub in result.output
 
 
@@ -97,7 +127,8 @@ def test_cli_leaf_help_triggers_lazy_imports():
     runner = CliRunner()
     for cmd in (
         ["vm", "--help"], ["ct", "--help"], ["cluster", "--help"],
-        ["storage", "--help"], ["doctor", "--help"],
+        ["storage", "--help"], ["backup", "--help"], ["ha", "--help"],
+        ["pool", "--help"], ["firewall", "--help"], ["doctor", "--help"],
     ):
         result = runner.invoke(app, cmd)
         assert result.exit_code == 0, f"{cmd} failed: {result.output}"
@@ -108,10 +139,19 @@ def test_cli_leaf_help_triggers_lazy_imports():
         ["vm", "delete", "--help"], ["vm", "migrate", "--help"],
         ["vm", "snapshot-create", "--help"], ["vm", "snapshot-delete", "--help"],
         ["vm", "snapshot-rollback", "--help"], ["vm", "snapshot-list", "--help"],
+        ["vm", "resize-disk", "--help"], ["vm", "move-disk", "--help"],
+        ["vm", "agent-ping", "--help"],
         ["ct", "list", "--help"], ["ct", "start", "--help"], ["ct", "stop", "--help"],
         ["cluster", "nodes", "--help"], ["cluster", "status", "--help"],
-        ["cluster", "task-status", "--help"],
+        ["cluster", "task-status", "--help"], ["cluster", "resources", "--help"],
+        ["cluster", "node-status", "--help"], ["cluster", "task-log", "--help"],
+        ["cluster", "next-vmid", "--help"],
         ["storage", "list", "--help"], ["storage", "content", "--help"],
+        ["backup", "create", "--help"], ["backup", "list", "--help"],
+        ["backup", "restore", "--help"],
+        ["ha", "status", "--help"], ["ha", "resources", "--help"],
+        ["pool", "list", "--help"], ["pool", "members", "--help"],
+        ["firewall", "vm-rules", "--help"], ["firewall", "cluster-status", "--help"],
     ):
         result = runner.invoke(app, cmd)
         assert result.exit_code == 0, f"{cmd} failed: {result.output}"

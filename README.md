@@ -12,10 +12,11 @@ full coverage of every Proxmox operation.
 
 ## What works
 
-- **CLI** (`proxmox-aiops ...`): `vm list/get/config/start/stop/shutdown/reboot/reconfigure/clone/delete/migrate`, `vm snapshot-create/snapshot-delete/snapshot-list/snapshot-rollback`, `ct list/start/stop`, `cluster nodes/status/task-status`, `storage list/content`, `doctor`, `mcp`.
-- **MCP server** (`proxmox-aiops mcp` or `proxmox-aiops-mcp`): **23 tools**, every one wrapped with the bundled `@governed_tool` harness.
-- **Reversibility**: write ops with a clean inverse (start/stop/shutdown/reconfigure/clone/migrate/snapshot-create, container start/stop) record an inverse undo descriptor; irreversible ops (delete, snapshot-rollback) declare none and are tagged `high` risk.
-- **Async tasks**: Proxmox writes return a task UPID — poll completion with `cluster task-status` (the runaway budget guard prevents poll loops from running away).
+- **CLI** (`proxmox-aiops ...`): `vm list/get/config/start/stop/shutdown/reboot/reconfigure/clone/delete/migrate`, `vm resize-disk/move-disk/agent-ping`, `vm snapshot-create/snapshot-delete/snapshot-list/snapshot-rollback`, `backup create/list/restore`, `ct list/start/stop`, `cluster nodes/status/task-status/resources/node-status/task-log/next-vmid`, `ha status/resources`, `pool list/members`, `firewall vm-rules/cluster-status`, `storage list/content`, `init`, `secret set/list/rm/migrate/rotate-password`, `doctor`, `mcp`.
+- **MCP server** (`proxmox-aiops mcp` or `proxmox-aiops-mcp`): **39 tools**, every one wrapped with the bundled `@governed_tool` harness.
+- **Credentials**: `proxmox-aiops init` (onboarding wizard) and `proxmox-aiops secret ...` manage an encrypted secret store — no plaintext passwords in `config.yaml`.
+- **Reversibility**: write ops with a clean inverse (start/stop/shutdown/reconfigure/clone/migrate/snapshot-create/move-disk, container start/stop, and restore-into-a-free-vmid) record an inverse undo descriptor; irreversible ops (delete, snapshot-rollback, forced restore) declare none and are tagged `high` risk. Disk resize is grow-only (shrink refused).
+- **Async tasks**: Proxmox writes return a task UPID — poll completion with `cluster task-status` / read lines with `cluster task-log` (the runaway budget guard prevents poll loops from running away).
 
 ## Quick start
 
@@ -48,8 +49,8 @@ All operations are logged to a local SQLite audit DB under `~/.proxmox-aiops/`
 governance harness: policy pre-check, token/runaway budget guard, graduated
 risk-tier gate, and audit logging. Destructive CLI commands (`vm stop`,
 `vm delete`, `vm snapshot-delete`, `vm snapshot-rollback`, `ct stop`) require
-double confirmation and support `--dry-run`. API-returned text is run through a
-prompt-injection sanitizer.
+double confirmation and support `--dry-run` (notably `backup restore`, which is
+`high` risk). API-returned text is run through a prompt-injection sanitizer.
 
 ## Contributing & feature requests
 
