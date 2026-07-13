@@ -1,5 +1,32 @@
 # Changelog
 
+## v0.3.0 — 2026-07-13
+
+Security-hardening release from a line-wide code review.
+
+### Changed (behavior)
+- **Secure by default**: with no `rules.yaml`, high/critical operations now require a
+  named approver (`PROXMOX_AUDIT_APPROVED_BY`). A fresh install no longer allows
+  destructive writes unattended; `init` seeds a starter `rules.yaml` you can edit,
+  and an operator-authored rules file is honoured as-is.
+- `__version__` is now single-sourced from package metadata (the previous release
+  self-reported a stale version string).
+- Sanitize docs no longer overstate scope: it strips control/format characters and
+  truncates; semantic prompt-injection resistance must come from the consuming agent.
+
+### Fixed
+- CLI exception handling: `storage list/content` without a node and unknown LXC ids now print a one-line error instead of a traceback (duplicate `NodeRequiredError` class removed; `ContainerNotFoundError` handled).
+- `vm_snapshot_delete` risk tier raised medium → high (destroys a rollback point; line consistency).
+- API connections now carry a 30s timeout.
+- All lifecycle write tools accept `dry_run=True` previews.
+
+### Tests
+- Governance persistence is now tested against REAL `audit.db`/`undo.db` files
+  (write → audit row + inverse undo row with captured prior state).
+- The CLI confirmed-write path (dry-run / double-confirm / governed execution) is
+  covered end-to-end.
+- `pytest-cov` added to the dev dependencies.
+
 ## v0.2.1
 
 - Fix: `PROXMOX_AIOPS_HOME` now also relocates `config.yaml` (was hardcoded to `~/.proxmox-aiops`).

@@ -27,9 +27,17 @@ DryRunOption = Annotated[
 
 def _cli_error_types() -> tuple[type[BaseException], ...]:
     """Exceptions translated to a one-line teaching error instead of a traceback."""
+    from proxmox_aiops.ops.lxc import ContainerNotFoundError
     from proxmox_aiops.ops.vm_lifecycle import NodeRequiredError, VMNotFoundError
 
-    return (VMNotFoundError, NodeRequiredError, KeyError, OSError, ValueError)
+    return (
+        VMNotFoundError,
+        ContainerNotFoundError,
+        NodeRequiredError,
+        KeyError,
+        OSError,
+        ValueError,
+    )
 
 
 def cli_errors(fn: Callable) -> Callable:
@@ -51,7 +59,7 @@ def cli_errors(fn: Callable) -> Callable:
     return wrapper
 
 
-def get_connection(target: str | None, config_path: Path | None = None):
+def get_connection(target: str | None, config_path: Path | None = None) -> tuple[Any, Any]:
     """Return a (conn, config) tuple for the given target."""
     from proxmox_aiops.config import load_config
     from proxmox_aiops.connection import ConnectionManager

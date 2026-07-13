@@ -2,7 +2,7 @@
 
 Bodies are thin wrappers over proxmoxer's resource-path API, e.g.
 ``conn.nodes(node).qemu(vmid).status.start.post()``. All API-returned text is
-run through ``sanitize()`` before reaching the caller (prompt-injection defense).
+run through ``sanitize()`` before reaching the caller (output hygiene).
 """
 
 from __future__ import annotations

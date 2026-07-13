@@ -20,6 +20,10 @@ from proxmox_aiops.config import AppConfig, TargetConfig, load_config
 # Side-stored per-connection metadata, keyed by id(conn). See module docstring.
 _CONN_NODE: dict[int, str] = {}
 
+# HTTP timeout (seconds) for every proxmoxer API call — without it a hung PVE
+# endpoint blocks the tool call indefinitely.
+_TIMEOUT = 30
+
 
 def get_default_node(conn: Any) -> str:
     """Return the default node stashed for ``conn`` (empty if none)."""
@@ -92,10 +96,12 @@ class ConnectionManager:
                 token_name=token_name,
                 token_value=target.secret,
                 verify_ssl=target.verify_ssl,
+                timeout=_TIMEOUT,
             )
         return ProxmoxAPI(
             host,
             user=target.user,
             password=target.secret,
             verify_ssl=target.verify_ssl,
+            timeout=_TIMEOUT,
         )

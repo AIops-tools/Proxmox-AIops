@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "proxmox-aiops"
-version = "0.2.1"
+version = "0.3.0"
 description = "Proxmox VE AI-powered VM/container lifecycle operations with a built-in governance harness (audit, budget, undo, risk tiers)"
 readme = "README.md"
 license = "MIT"
@@ -23,6 +23,7 @@ dependencies = [
 [dependency-groups]
 dev = [
     "pytest>=8.0,<10.0",
+    "pytest-cov>=5.0,<8.0",
     "ruff>=0.5,<1.0",
 ]
 

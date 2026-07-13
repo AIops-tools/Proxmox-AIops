@@ -91,7 +91,7 @@ proxmox-aiops doctor
 
 | Scenario | Recommended | Why |
 |----------|:-----------:|-----|
-| Local/small models (Ollama, Qwen) | **CLI** | fewer tokens than MCP |
+| Local/small models | **CLI** | fewer tokens than MCP |
 | Cloud models (Claude, GPT) | Either | MCP gives structured JSON I/O |
 | Automated pipelines | **MCP** | type-safe parameters, audited |
 

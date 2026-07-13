@@ -70,71 +70,106 @@ def vm_start(vmid: int, target: Optional[str] = None, node: Optional[str] = None
 @mcp.tool()
 @governed_tool(
     risk_level="medium",
-    undo=lambda params, result: {
-        "tool": "vm_start",
-        "params": {"vmid": params.get("vmid"), "node": params.get("node")},
-        "skill": "proxmox-aiops",
-        "note": "Inverse of vm_stop: start the VM again.",
-    },
+    undo=lambda params, result: (
+        {
+            "tool": "vm_start",
+            "params": {"vmid": params.get("vmid"), "node": params.get("node")},
+            "skill": "proxmox-aiops",
+            "note": "Inverse of vm_stop: start the VM again.",
+        }
+        if isinstance(result, dict) and not result.get("dryRun")
+        else None
+    ),
 )
 @tool_errors("dict")
-def vm_stop(vmid: int, target: Optional[str] = None, node: Optional[str] = None) -> dict:
+def vm_stop(
+    vmid: int,
+    dry_run: bool = False,
+    target: Optional[str] = None,
+    node: Optional[str] = None,
+) -> dict:
     """[WRITE] Hard-stop (power off) a VM. Returns the task UPID. Inverse: vm_start.
 
     This is an immediate power-off (not a graceful guest shutdown); the guest
     filesystem may be left dirty. Audited to ~/.proxmox-aiops/audit.db.
+    Pass dry_run=True to preview.
 
     Args:
         vmid: Numeric Proxmox VM id.
+        dry_run: If True, preview without stopping.
         target: Proxmox target name from config.
         node: Node name; omit to auto-locate the VM.
     """
+    if dry_run:
+        return {"dryRun": True, "wouldStop": {"vmid": vmid, "node": node}}
     return vl.stop_vm(_get_connection(target), vmid, node=node)
 
 
 @mcp.tool()
 @governed_tool(
     risk_level="medium",
-    undo=lambda params, result: {
-        "tool": "vm_snapshot_delete",
-        "params": {
-            "vmid": params.get("vmid"),
-            "name": params.get("name"),
-            "node": params.get("node"),
-        },
-        "skill": "proxmox-aiops",
-        "note": "Inverse of vm_snapshot_create: delete the snapshot just made.",
-    },
+    undo=lambda params, result: (
+        {
+            "tool": "vm_snapshot_delete",
+            "params": {
+                "vmid": params.get("vmid"),
+                "name": params.get("name"),
+                "node": params.get("node"),
+            },
+            "skill": "proxmox-aiops",
+            "note": "Inverse of vm_snapshot_create: delete the snapshot just made.",
+        }
+        if isinstance(result, dict) and not result.get("dryRun")
+        else None
+    ),
 )
 @tool_errors("dict")
 def vm_snapshot_create(
-    vmid: int, name: str, target: Optional[str] = None, node: Optional[str] = None
+    vmid: int,
+    name: str,
+    dry_run: bool = False,
+    target: Optional[str] = None,
+    node: Optional[str] = None,
 ) -> dict:
     """[WRITE] Create a named snapshot of a VM. Inverse: vm_snapshot_delete.
+
+    Pass dry_run=True to preview.
 
     Args:
         vmid: Numeric Proxmox VM id.
         name: Snapshot name (must be unique for the VM).
+        dry_run: If True, preview without creating.
         target: Proxmox target name from config.
         node: Node name; omit to auto-locate the VM.
     """
+    if dry_run:
+        return {"dryRun": True, "wouldSnapshot": {"vmid": vmid, "name": name}}
     return vl.snapshot_create(_get_connection(target), vmid, name, node=node)
 
 
 @mcp.tool()
-@governed_tool(risk_level="medium")
+@governed_tool(risk_level="high")
 @tool_errors("dict")
 def vm_snapshot_delete(
-    vmid: int, name: str, target: Optional[str] = None, node: Optional[str] = None
+    vmid: int,
+    name: str,
+    dry_run: bool = False,
+    target: Optional[str] = None,
+    node: Optional[str] = None,
 ) -> dict:
-    """[WRITE] Delete a named snapshot from a VM.
+    """[WRITE] Delete a named snapshot from a VM. Destroys a rollback point — no undo.
+
+    Pass dry_run=True to preview.
 
     Args:
         vmid: Numeric Proxmox VM id.
         name: Snapshot name to delete (see vm_snapshot_list).
+        dry_run: If True, preview without deleting.
         target: Proxmox target name from config.
         node: Node name; omit to auto-locate the VM.
     """
+    if dry_run:
+        return {"dryRun": True, "wouldDeleteSnapshot": {"vmid": vmid, "name": name}}
     return vl.snapshot_delete(_get_connection(target), vmid, name, node=node)
 
 
@@ -171,22 +206,36 @@ def vm_config(vmid: int, target: Optional[str] = None, node: Optional[str] = Non
 @mcp.tool()
 @governed_tool(
     risk_level="medium",
-    undo=lambda params, result: {
-        "tool": "vm_start",
-        "params": {"vmid": params.get("vmid"), "node": params.get("node")},
-        "skill": "proxmox-aiops",
-        "note": "Inverse of vm_shutdown: start the VM again.",
-    },
+    undo=lambda params, result: (
+        {
+            "tool": "vm_start",
+            "params": {"vmid": params.get("vmid"), "node": params.get("node")},
+            "skill": "proxmox-aiops",
+            "note": "Inverse of vm_shutdown: start the VM again.",
+        }
+        if isinstance(result, dict) and not result.get("dryRun")
+        else None
+    ),
 )
 @tool_errors("dict")
-def vm_shutdown(vmid: int, target: Optional[str] = None, node: Optional[str] = None) -> dict:
+def vm_shutdown(
+    vmid: int,
+    dry_run: bool = False,
+    target: Optional[str] = None,
+    node: Optional[str] = None,
+) -> dict:
     """[WRITE] Graceful ACPI shutdown of a VM (vs the hard vm_stop). Inverse: vm_start.
+
+    Pass dry_run=True to preview.
 
     Args:
         vmid: Numeric Proxmox VM id.
+        dry_run: If True, preview without shutting down.
         target: Proxmox target name from config.
         node: Node name; omit to auto-locate the VM.
     """
+    if dry_run:
+        return {"dryRun": True, "wouldShutdown": {"vmid": vmid, "node": node}}
     return vl.shutdown_vm(_get_connection(target), vmid, node=node)
 
 
@@ -251,84 +300,113 @@ def vm_reconfigure(
 @mcp.tool()
 @governed_tool(
     risk_level="medium",
-    undo=lambda params, result: {
-        "tool": "vm_delete",
-        "params": {"vmid": (result or {}).get("newid"), "node": params.get("node")},
-        "skill": "proxmox-aiops",
-        "note": "Inverse of vm_clone: destroy the freshly-cloned VM.",
-    },
+    undo=lambda params, result: (
+        {
+            "tool": "vm_delete",
+            "params": {"vmid": (result or {}).get("newid"), "node": params.get("node")},
+            "skill": "proxmox-aiops",
+            "note": "Inverse of vm_clone: destroy the freshly-cloned VM.",
+        }
+        if isinstance(result, dict) and not result.get("dryRun") and result.get("newid")
+        else None
+    ),
 )
 @tool_errors("dict")
 def vm_clone(
     vmid: int,
     newid: int,
     name: Optional[str] = None,
+    dry_run: bool = False,
     target: Optional[str] = None,
     node: Optional[str] = None,
 ) -> dict:
     """[WRITE] Clone a VM to a new vmid. Returns the task UPID. Inverse: vm_delete(newid).
 
     Cloning is asynchronous — poll completion with task_status, do not re-issue.
+    Pass dry_run=True to preview.
 
     Args:
         vmid: Source VM id to clone from.
         newid: New (unused) VM id for the clone.
         name: Optional name for the clone.
+        dry_run: If True, preview without cloning.
         target: Proxmox target name from config.
         node: Node name; omit to auto-locate the source VM.
     """
+    if dry_run:
+        return {"dryRun": True, "wouldClone": {"vmid": vmid, "newid": newid, "name": name}}
     return vl.clone_vm(_get_connection(target), vmid, newid, name=name, node=node)
 
 
 @mcp.tool()
 @governed_tool(risk_level="high")
 @tool_errors("dict")
-def vm_delete(vmid: int, target: Optional[str] = None, node: Optional[str] = None) -> dict:
+def vm_delete(
+    vmid: int,
+    dry_run: bool = False,
+    target: Optional[str] = None,
+    node: Optional[str] = None,
+) -> dict:
     """[WRITE] Permanently destroy a VM. IRREVERSIBLE — no undo token.
 
     Confirm with the user before calling. Audited to ~/.proxmox-aiops/audit.db.
+    Pass dry_run=True to preview.
 
     Args:
         vmid: Numeric Proxmox VM id to destroy.
+        dry_run: If True, preview without destroying.
         target: Proxmox target name from config.
         node: Node name; omit to auto-locate the VM.
     """
+    if dry_run:
+        return {"dryRun": True, "wouldDelete": {"vmid": vmid, "node": node}}
     return vl.delete_vm(_get_connection(target), vmid, node=node)
 
 
 @mcp.tool()
 @governed_tool(
     risk_level="high",
-    undo=lambda params, result: {
-        "tool": "vm_migrate",
-        "params": {
-            "vmid": params.get("vmid"),
-            "target_node": (result or {}).get("from_node"),
-            "node": (result or {}).get("to_node"),
-        },
-        "skill": "proxmox-aiops",
-        "note": "Inverse of vm_migrate: migrate the VM back to its source node.",
-    },
+    undo=lambda params, result: (
+        {
+            "tool": "vm_migrate",
+            "params": {
+                "vmid": params.get("vmid"),
+                "target_node": (result or {}).get("from_node"),
+                "node": (result or {}).get("to_node"),
+            },
+            "skill": "proxmox-aiops",
+            "note": "Inverse of vm_migrate: migrate the VM back to its source node.",
+        }
+        if isinstance(result, dict) and not result.get("dryRun") and result.get("from_node")
+        else None
+    ),
 )
 @tool_errors("dict")
 def vm_migrate(
     vmid: int,
     target_node: str,
     online: bool = True,
+    dry_run: bool = False,
     target: Optional[str] = None,
     node: Optional[str] = None,
 ) -> dict:
     """[WRITE] Migrate a VM to another node. Returns task UPID. Inverse: migrate back.
 
-    Asynchronous — poll completion with task_status.
+    Asynchronous — poll completion with task_status. Pass dry_run=True to preview.
 
     Args:
         vmid: Numeric Proxmox VM id.
         target_node: Destination node name.
         online: True (default) for live migration; False to migrate while stopped.
+        dry_run: If True, preview without migrating.
         target: Proxmox target name from config.
         node: Source node name; omit to auto-locate the VM.
     """
+    if dry_run:
+        return {
+            "dryRun": True,
+            "wouldMigrate": {"vmid": vmid, "target_node": target_node, "online": online},
+        }
     return vl.migrate_vm(
         _get_connection(target), vmid, target_node, node=node, online=online
     )
@@ -338,16 +416,24 @@ def vm_migrate(
 @governed_tool(risk_level="high")
 @tool_errors("dict")
 def vm_snapshot_rollback(
-    vmid: int, name: str, target: Optional[str] = None, node: Optional[str] = None
+    vmid: int,
+    name: str,
+    dry_run: bool = False,
+    target: Optional[str] = None,
+    node: Optional[str] = None,
 ) -> dict:
     """[WRITE] Roll a VM back to a snapshot. IRREVERSIBLE — discards changes since then.
 
     No undo token (the discarded state cannot be recovered). Confirm with the user.
+    Pass dry_run=True to preview.
 
     Args:
         vmid: Numeric Proxmox VM id.
         name: Snapshot name to roll back to (see vm_list_snapshots).
+        dry_run: If True, preview without rolling back.
         target: Proxmox target name from config.
         node: Node name; omit to auto-locate the VM.
     """
+    if dry_run:
+        return {"dryRun": True, "wouldRollback": {"vmid": vmid, "name": name}}
     return vl.rollback_snapshot(_get_connection(target), vmid, name, node=node)

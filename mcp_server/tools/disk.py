@@ -19,20 +19,24 @@ def vm_resize_disk(
     vmid: int,
     disk: str,
     size: str,
+    dry_run: bool = False,
     target: Optional[str] = None,
     node: Optional[str] = None,
 ) -> dict:
     """[WRITE] Grow a VM disk. GROW-ONLY — shrink requests are refused.
 
-    No undo token: growing a disk cannot be reversed.
+    No undo token: growing a disk cannot be reversed. Pass dry_run=True to preview.
 
     Args:
         vmid: Numeric Proxmox VM id.
         disk: Disk key, e.g. 'scsi0', 'virtio0', 'sata0'.
         size: '+<N>G' increment (e.g. '+10G') or a larger absolute size.
+        dry_run: If True, preview without resizing.
         target: Proxmox target name from config.
         node: Node name; omit to auto-locate the VM.
     """
+    if dry_run:
+        return {"dryRun": True, "wouldResize": {"vmid": vmid, "disk": disk, "size": size}}
     return dk.resize_disk(_get_connection(target), vmid, disk, size, node=node)
 
 
