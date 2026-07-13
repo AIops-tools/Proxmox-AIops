@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.2.1
+
+- Fix: `PROXMOX_AIOPS_HOME` now also relocates `config.yaml` (was hardcoded to `~/.proxmox-aiops`).
+- Fix: **CLI writes are now audited + undo-recorded** via the governance path — previously only the MCP tools recorded audit/undo; CLI `manage`/`remediate`/etc. writes now go through the same `@governed_tool` layer (they keep their dry-run + double-confirm). CLI write output is now the governed JSON result. No API/tool changes.
+
+
 All notable changes to **proxmox-aiops** are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres
 to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).

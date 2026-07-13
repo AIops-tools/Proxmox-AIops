@@ -6,6 +6,7 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
+from mcp_server.tools import backup as gov
 from proxmox_aiops.cli._common import (
     DryRunOption,
     NodeOption,
@@ -31,8 +32,7 @@ def backup_create(
     node: NodeOption = None,
 ) -> None:
     """Create a vzdump backup of a VM/CT (async — poll with 'cluster task-status')."""
-    conn, _ = get_connection(target)
-    result = bk.vm_backup(conn, vmid, storage, node=node, mode=mode)
+    result = gov.vm_backup(vmid=vmid, storage=storage, mode=mode, target=target, node=node)
     console.print(f"[green]Backup of {vmid} → {storage} started[/] (task: {result['task']})")
 
 
@@ -75,6 +75,7 @@ def backup_restore(
                       parameters={"archive": archive, "storage": storage, "force": force})
         return
     double_confirm("restore (may overwrite)", f"VM {vmid} from {archive}")
-    conn, _ = get_connection(target)
-    result = bk.restore_backup(conn, vmid, archive, storage, node=node, force=force)
+    result = gov.backup_restore(
+        vmid=vmid, archive=archive, storage=storage, force=force, target=target, node=node
+    )
     console.print(f"[green]Restoring VM {vmid} from backup[/] (task: {result['task']})")

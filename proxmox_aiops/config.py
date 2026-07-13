@@ -19,9 +19,10 @@ from typing import Literal
 
 import yaml
 
+from proxmox_aiops.governance.paths import ops_home
 from proxmox_aiops.secretstore import SecretStoreError, get_secret, has_store
 
-CONFIG_DIR = Path.home() / ".proxmox-aiops"
+CONFIG_DIR = ops_home()
 CONFIG_FILE = CONFIG_DIR / "config.yaml"
 ENV_FILE = CONFIG_DIR / ".env"
 

@@ -6,6 +6,8 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
+from mcp_server.tools import disk as gov_disk
+from mcp_server.tools import vm as gov
 from proxmox_aiops.cli._common import (
     DryRunOption,
     NodeOption,
@@ -16,7 +18,6 @@ from proxmox_aiops.cli._common import (
     get_connection,
 )
 from proxmox_aiops.ops import agent as ag
-from proxmox_aiops.ops import disk as dk
 from proxmox_aiops.ops import vm_lifecycle as vl
 
 vm_app = typer.Typer(help="QEMU VM lifecycle operations.", no_args_is_help=True)
@@ -54,8 +55,7 @@ def vm_get(vmid: int, target: TargetOption = None, node: NodeOption = None) -> N
 @cli_errors
 def vm_start(vmid: int, target: TargetOption = None, node: NodeOption = None) -> None:
     """Start a VM."""
-    conn, _ = get_connection(target)
-    result = vl.start_vm(conn, vmid, node=node)
+    result = gov.vm_start(vmid=vmid, target=target, node=node)
     console.print(f"[green]Started VM {vmid}[/] (task: {result['task']})")
 
 
@@ -72,8 +72,7 @@ def vm_stop(
         dry_run_print(operation="stop_vm", api_call=f"qemu({vmid}).status.stop.post()")
         return
     double_confirm("stop", f"VM {vmid}")
-    conn, _ = get_connection(target)
-    result = vl.stop_vm(conn, vmid, node=node)
+    result = gov.vm_stop(vmid=vmid, target=target, node=node)
     console.print(f"[green]Stopped VM {vmid}[/] (task: {result['task']})")
 
 
@@ -86,8 +85,7 @@ def vm_snapshot_create(
     node: NodeOption = None,
 ) -> None:
     """Create a named snapshot."""
-    conn, _ = get_connection(target)
-    result = vl.snapshot_create(conn, vmid, name, node=node)
+    result = gov.vm_snapshot_create(vmid=vmid, name=name, target=target, node=node)
     console.print(f"[green]Created snapshot '{name}' on VM {vmid}[/] (task: {result['task']})")
 
 
@@ -108,8 +106,7 @@ def vm_snapshot_delete(
         )
         return
     double_confirm("delete snapshot", f"{name} on VM {vmid}")
-    conn, _ = get_connection(target)
-    result = vl.snapshot_delete(conn, vmid, name, node=node)
+    result = gov.vm_snapshot_delete(vmid=vmid, name=name, target=target, node=node)
     console.print(f"[green]Deleted snapshot '{name}' on VM {vmid}[/] (task: {result['task']})")
 
 
@@ -146,8 +143,7 @@ def vm_shutdown(
     if dry_run:
         dry_run_print(operation="shutdown_vm", api_call=f"qemu({vmid}).status.shutdown.post()")
         return
-    conn, _ = get_connection(target)
-    result = vl.shutdown_vm(conn, vmid, node=node)
+    result = gov.vm_shutdown(vmid=vmid, target=target, node=node)
     console.print(f"[green]Shutdown requested for VM {vmid}[/] (task: {result['task']})")
 
 
@@ -155,8 +151,7 @@ def vm_shutdown(
 @cli_errors
 def vm_reboot(vmid: int, target: TargetOption = None, node: NodeOption = None) -> None:
     """Reboot a VM (graceful)."""
-    conn, _ = get_connection(target)
-    result = vl.reboot_vm(conn, vmid, node=node)
+    result = gov.vm_reboot(vmid=vmid, target=target, node=node)
     console.print(f"[green]Reboot requested for VM {vmid}[/] (task: {result['task']})")
 
 
@@ -175,8 +170,9 @@ def vm_reconfigure(
         dry_run_print(operation="reconfigure_vm", api_call=f"qemu({vmid}).config.post()",
                       parameters={"cores": cores, "memory": memory})
         return
-    conn, _ = get_connection(target)
-    result = vl.reconfigure_vm(conn, vmid, cores=cores, memory=memory, node=node)
+    result = gov.vm_reconfigure(
+        vmid=vmid, cores=cores, memory=memory, target=target, node=node
+    )
     console.print(f"[green]Reconfigured VM {vmid}[/] applied={result['applied']} "
                   f"(was {result['previous']})")
 
@@ -191,8 +187,7 @@ def vm_clone(
     node: NodeOption = None,
 ) -> None:
     """Clone a VM to a new vmid (async — poll with 'cluster task-status')."""
-    conn, _ = get_connection(target)
-    result = vl.clone_vm(conn, vmid, newid, name=name, node=node)
+    result = gov.vm_clone(vmid=vmid, newid=newid, name=name, target=target, node=node)
     console.print(f"[green]Clone {vmid} → {newid} started[/] (task: {result['task']})")
 
 
@@ -207,8 +202,7 @@ def vm_delete(
         dry_run_print(operation="delete_vm", api_call=f"qemu({vmid}).delete()")
         return
     double_confirm("permanently destroy", f"VM {vmid}")
-    conn, _ = get_connection(target)
-    result = vl.delete_vm(conn, vmid, node=node)
+    result = gov.vm_delete(vmid=vmid, target=target, node=node)
     console.print(f"[green]Destroyed VM {vmid}[/] (task: {result['task']})")
 
 
@@ -227,8 +221,9 @@ def vm_migrate(
         dry_run_print(operation="migrate_vm", api_call=f"qemu({vmid}).migrate.post()",
                       parameters={"target": to_node, "online": not offline})
         return
-    conn, _ = get_connection(target)
-    result = vl.migrate_vm(conn, vmid, to_node, node=node, online=not offline)
+    result = gov.vm_migrate(
+        vmid=vmid, target_node=to_node, online=not offline, target=target, node=node
+    )
     console.print(f"[green]Migrating VM {vmid} → {to_node}[/] (task: {result['task']})")
 
 
@@ -247,8 +242,7 @@ def vm_snapshot_rollback(
                       api_call=f"qemu({vmid}).snapshot({name!r}).rollback.post()")
         return
     double_confirm("roll back (discards newer changes)", f"VM {vmid} → snapshot {name}")
-    conn, _ = get_connection(target)
-    result = vl.rollback_snapshot(conn, vmid, name, node=node)
+    result = gov.vm_snapshot_rollback(vmid=vmid, name=name, target=target, node=node)
     console.print(f"[green]Rolled VM {vmid} back to '{name}'[/] (task: {result['task']})")
 
 
@@ -267,8 +261,7 @@ def vm_resize_disk(
         dry_run_print(operation="resize_disk", api_call=f"qemu({vmid}).resize.put()",
                       parameters={"disk": disk, "size": size})
         return
-    conn, _ = get_connection(target)
-    dk.resize_disk(conn, vmid, disk, size, node=node)
+    gov_disk.vm_resize_disk(vmid=vmid, disk=disk, size=size, target=target, node=node)
     console.print(f"[green]Resized {disk} on VM {vmid}[/] to {size}")
 
 
@@ -288,8 +281,9 @@ def vm_move_disk(
         dry_run_print(operation="move_disk", api_call=f"qemu({vmid}).move_disk.post()",
                       parameters={"disk": disk, "storage": storage, "delete": delete})
         return
-    conn, _ = get_connection(target)
-    result = dk.move_disk(conn, vmid, disk, storage, node=node, delete=delete)
+    result = gov_disk.vm_move_disk(
+        vmid=vmid, disk=disk, storage=storage, delete=delete, target=target, node=node
+    )
     console.print(f"[green]Moving {disk} on VM {vmid} → {storage}[/] (task: {result['task']})")
 
 
