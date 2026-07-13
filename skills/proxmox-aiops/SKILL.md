@@ -170,6 +170,7 @@ Either pass `--node <name>` / `node=<name>`, or set `node:` on the target in `co
 All operations are automatically audited via the bundled `@governed_tool` decorator (`proxmox_aiops.governance`):
 - Every tool call logged to `~/.proxmox-aiops/audit.db` (local SQLite audit DB; relocate with `PROXMOX_AIOPS_HOME`)
 - Policy rules enforced via `~/.proxmox-aiops/rules.yaml` (deny rules, maintenance windows, risk tiers)
+- **Secure by default (v0.3.0+)**: with no `~/.proxmox-aiops/rules.yaml`, high/critical operations are denied unless `PROXMOX_AUDIT_APPROVED_BY` names an approver (set `PROXMOX_AUDIT_RATIONALE` too). `proxmox-aiops init` seeds a starter rules.yaml; an operator-authored rules file is honoured as-is.
 - Budget / runaway guard caps cumulative tool calls and wall-time, and trips on tight poll/retry loops
 - Undo store records inverse descriptors for reversible writes (start/stop/shutdown/reconfigure/clone/migrate/snapshot-create, container start/stop)
 - Graduated-autonomy risk tiers gate write operations (require a recorded approver for the highest tiers)
