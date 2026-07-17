@@ -15,6 +15,7 @@ from proxmox_aiops.cli.lxc import ct_app
 from proxmox_aiops.cli.pool import pool_app
 from proxmox_aiops.cli.secret import secret_app
 from proxmox_aiops.cli.storage import storage_app
+from proxmox_aiops.cli.undo import undo_app
 from proxmox_aiops.cli.vm import vm_app
 
 app = typer.Typer(
@@ -32,6 +33,7 @@ app.add_typer(ha_app, name="ha")
 app.add_typer(pool_app, name="pool")
 app.add_typer(firewall_app, name="firewall")
 app.add_typer(secret_app, name="secret")
+app.add_typer(undo_app, name="undo")
 app.command("init")(init_cmd)
 app.command("doctor")(doctor_cmd)
 
