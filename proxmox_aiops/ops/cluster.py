@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from proxmox_aiops.governance import sanitize
+from proxmox_aiops.governance import opt_str, sanitize
 
 
 def list_nodes(conn: Any) -> list[dict]:
@@ -21,8 +21,8 @@ def list_nodes(conn: Any) -> list[dict]:
     for n in conn.nodes.get():
         out.append(
             {
-                "node": sanitize(str(n.get("node", "")), 64),
-                "status": sanitize(str(n.get("status", "")), 32),
+                "node": opt_str(n.get("node"), 64),
+                "status": opt_str(n.get("status"), 32),
                 "cpu": n.get("cpu"),
                 "maxcpu": n.get("maxcpu"),
                 "mem": n.get("mem"),
@@ -43,12 +43,12 @@ def cluster_status(conn: Any) -> list[dict]:
     for item in conn.cluster.status.get():
         out.append(
             {
-                "type": sanitize(str(item.get("type", "")), 32),
-                "name": sanitize(str(item.get("name", "")), 64),
+                "type": opt_str(item.get("type"), 32),
+                "name": opt_str(item.get("name"), 64),
                 "online": item.get("online"),
                 "quorate": item.get("quorate"),
                 "nodes": item.get("nodes"),
-                "level": sanitize(str(item.get("level", "")), 32),
+                "level": opt_str(item.get("level"), 32),
             }
         )
     return out
@@ -76,9 +76,9 @@ def get_task_status(conn: Any, upid: str, node: str | None = None) -> dict:
     return {
         "upid": sanitize(str(upid), 256),
         "node": sanitize(str(host_node), 64),
-        "type": sanitize(str(status.get("type", "")), 64),
-        "status": sanitize(str(status.get("status", "")), 32),
-        "exitstatus": sanitize(str(status.get("exitstatus", "")), 64),
+        "type": opt_str(status.get("type"), 64),
+        "status": opt_str(status.get("status"), 32),
+        "exitstatus": opt_str(status.get("exitstatus"), 64),
     }
 
 
@@ -94,11 +94,11 @@ def cluster_resources(conn: Any, resource_type: str | None = None) -> list[dict]
     for r in items:
         out.append(
             {
-                "id": sanitize(str(r.get("id", "")), 128),
-                "type": sanitize(str(r.get("type", "")), 32),
-                "name": sanitize(str(r.get("name", "")), 128),
-                "node": sanitize(str(r.get("node", "")), 64),
-                "status": sanitize(str(r.get("status", "")), 32),
+                "id": opt_str(r.get("id"), 128),
+                "type": opt_str(r.get("type"), 32),
+                "name": opt_str(r.get("name"), 128),
+                "node": opt_str(r.get("node"), 64),
+                "status": opt_str(r.get("status"), 32),
                 "vmid": r.get("vmid"),
                 "cpu": r.get("cpu"),
                 "mem": r.get("mem"),
@@ -124,28 +124,46 @@ def node_status(conn: Any, node: str) -> dict:
         "mem_total": mem.get("total"),
         "mem_used": mem.get("used"),
         "mem_free": mem.get("free"),
-        "pveversion": sanitize(str(st.get("pveversion", "")), 64),
+        "pveversion": opt_str(st.get("pveversion"), 64),
     }
 
 
 def task_log(
     conn: Any, upid: str, node: str | None = None, limit: int = 200
-) -> list[dict]:
+) -> dict:
     """[READ] Fetch the log lines of an async task by its UPID.
 
     The node is parsed from the UPID when not given. ``limit`` caps the number
     of lines returned (the runaway breaker also bounds repeated polling).
+
+    Returns an envelope rather than a bare list::
+
+        {"lines": [...], "returned": 200, "limit": 200, "truncated": true}
+
+    so a truncated read announces itself. A bare list cannot say "there is
+    more" — the consumer has to infer it from the length happening to equal the
+    limit, and a smaller local model faced with a long result tends to report
+    that nothing came back at all. One extra line is requested so ``truncated``
+    is *measured* rather than guessed from a length coincidence.
     """
     host_node = node or _node_from_upid(upid)
     if not host_node:
         raise ValueError(
             f"Could not determine node from UPID {upid!r}; pass node=<name>."
         )
-    lines = conn.nodes(host_node).tasks(upid).log.get(limit=int(limit))
-    return [
-        {"n": ln.get("n"), "t": sanitize(str(ln.get("t", "")), 500)}
-        for ln in lines
+    requested = int(limit)
+    raw = list(conn.nodes(host_node).tasks(upid).log.get(limit=requested + 1))
+    truncated = len(raw) > requested
+    lines = [
+        {"n": ln.get("n"), "t": opt_str(ln.get("t"), 500)}
+        for ln in raw[:requested]
     ]
+    return {
+        "lines": lines,
+        "returned": len(lines),
+        "limit": requested,
+        "truncated": truncated,
+    }
 
 
 def next_vmid(conn: Any) -> dict:

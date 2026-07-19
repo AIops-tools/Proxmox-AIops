@@ -84,14 +84,18 @@ def node_status(node: str, target: Optional[str] = None) -> dict:
 
 @mcp.tool()
 @governed_tool(risk_level="low")
-@tool_errors("list")
+@tool_errors("dict")
 def task_log(
     upid: str,
     limit: int = 200,
     target: Optional[str] = None,
     node: Optional[str] = None,
-) -> list:
+) -> dict:
     """[READ] Fetch the log lines of an async task by its UPID.
+
+    Returns {"lines": [...], "returned": N, "limit": L, "truncated": bool}.
+    When truncated is true there are more lines than were returned — raise
+    limit or narrow the query rather than assuming you have the whole log.
 
     Args:
         upid: The task UPID.

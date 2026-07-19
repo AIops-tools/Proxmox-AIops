@@ -88,9 +88,12 @@ def test_task_log_tool(monkeypatch):
         {"n": 1, "t": "line"},
     ]
     monkeypatch.setattr(cluster_tools, "_get_connection", lambda target=None: conn)
-    lines = cluster_tools.task_log("UPID:pve1:a:b", limit=3)
-    conn.nodes.return_value.tasks.return_value.log.get.assert_called_once_with(limit=3)
-    assert lines[0]["t"] == "line"
+    result = cluster_tools.task_log("UPID:pve1:a:b", limit=3)
+    # One extra line is requested so truncation is measured, not guessed.
+    conn.nodes.return_value.tasks.return_value.log.get.assert_called_once_with(limit=4)
+    assert result["lines"][0]["t"] == "line"
+    assert result["returned"] == 1
+    assert result["truncated"] is False
 
 
 @pytest.mark.unit

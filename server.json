@@ -2,17 +2,17 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.AIops-tools/proxmox-aiops",
   "title": "Proxmox AIops",
-  "description": "Governed Proxmox VE VM/container ops — 23 MCP tools with audit, budget, undo & risk-tier guards.",
+  "description": "Governed Proxmox VE VM/container ops — 43 MCP tools with audit, budget, undo & risk-tier guards.",
   "repository": {
     "url": "https://github.com/AIops-tools/Proxmox-AIops",
     "source": "github"
   },
-  "version": "0.4.0",
+  "version": "0.5.0",
   "packages": [
     {
       "registryType": "pypi",
       "identifier": "proxmox-aiops",
-      "version": "0.4.0",
+      "version": "0.5.0",
       "transport": {
         "type": "stdio"
       }

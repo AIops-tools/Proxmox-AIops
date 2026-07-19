@@ -10,7 +10,7 @@ from __future__ import annotations
 from typing import Any
 
 from proxmox_aiops.connection import get_default_node
-from proxmox_aiops.governance import sanitize
+from proxmox_aiops.governance import opt_str, sanitize
 
 
 class VMNotFoundError(Exception):
@@ -64,8 +64,8 @@ def list_vms(conn: Any, node: str | None = None) -> list[dict]:
             out.append(
                 {
                     "vmid": int(vm["vmid"]),
-                    "name": sanitize(str(vm.get("name", "")), 128),
-                    "status": sanitize(str(vm.get("status", "")), 32),
+                    "name": opt_str(vm.get("name"), 128),
+                    "status": opt_str(vm.get("status"), 32),
                     "cpu": vm.get("cpus", vm.get("cpu")),
                     "mem": vm.get("maxmem", vm.get("mem")),
                     "node": candidate,
@@ -81,8 +81,8 @@ def get_vm(conn: Any, vmid: int, node: str | None = None) -> dict:
     return {
         "vmid": int(vmid),
         "node": host_node,
-        "name": sanitize(str(status.get("name", "")), 128),
-        "status": sanitize(str(status.get("status", "")), 32),
+        "name": opt_str(status.get("name"), 128),
+        "status": opt_str(status.get("status"), 32),
         "cpus": status.get("cpus"),
         "maxmem": status.get("maxmem"),
         "uptime": status.get("uptime"),
@@ -127,8 +127,8 @@ def list_snapshots(conn: Any, vmid: int, node: str | None = None) -> list[dict]:
     snaps = conn.nodes(host_node).qemu(vmid).snapshot.get()
     return [
         {
-            "name": sanitize(str(s.get("name", "")), 64),
-            "description": sanitize(str(s.get("description", "")), 200),
+            "name": opt_str(s.get("name"), 64),
+            "description": opt_str(s.get("description"), 200),
             "vmstate": s.get("vmstate"),
         }
         for s in snaps
@@ -158,12 +158,12 @@ def get_vm_config(conn: Any, vmid: int, node: str | None = None) -> dict:
     return {
         "vmid": int(vmid),
         "node": host_node,
-        "name": sanitize(str(cfg.get("name", "")), 128),
+        "name": opt_str(cfg.get("name"), 128),
         "cores": cfg.get("cores"),
         "sockets": cfg.get("sockets"),
         "memory": cfg.get("memory"),
-        "ostype": sanitize(str(cfg.get("ostype", "")), 32),
-        "boot": sanitize(str(cfg.get("boot", "")), 128),
+        "ostype": opt_str(cfg.get("ostype"), 32),
+        "boot": opt_str(cfg.get("boot"), 128),
     }
 
 

@@ -39,6 +39,8 @@ EXPECTED_TOOLS = {
     "vm_firewall_rules_list", "cluster_firewall_status",
     # agent
     "vm_agent_ping",
+    # diagnostics / RCA
+    "node_pressure_rca", "guest_health_rca",
 }
 
 WRITE_TOOLS_WITH_UNDO = {
@@ -72,6 +74,7 @@ def test_all_modules_import():
         "proxmox_aiops.ops.pool",
         "proxmox_aiops.ops.firewall",
         "proxmox_aiops.ops.agent",
+        "proxmox_aiops.ops.diagnostics",
         "proxmox_aiops.cli",
         "proxmox_aiops.cli._root",
         "proxmox_aiops.cli._common",
@@ -83,6 +86,7 @@ def test_all_modules_import():
         "proxmox_aiops.cli.ha",
         "proxmox_aiops.cli.pool",
         "proxmox_aiops.cli.firewall",
+        "proxmox_aiops.cli.diagnostics",
         "proxmox_aiops.cli.doctor",
         "mcp_server.server",
         "mcp_server._shared",
@@ -96,6 +100,7 @@ def test_all_modules_import():
         "mcp_server.tools.pool",
         "mcp_server.tools.firewall",
         "mcp_server.tools.agent",
+        "mcp_server.tools.diagnostics",
     ):
         importlib.import_module(name)
 
@@ -121,7 +126,7 @@ def test_cli_app_builds_and_help_works():
     runner = CliRunner()
     result = runner.invoke(app, ["--help"])
     assert result.exit_code == 0
-    for sub in ("vm", "ct", "cluster", "storage", "backup", "ha", "pool",
+    for sub in ("vm", "ct", "cluster", "diagnose", "storage", "backup", "ha", "pool",
                 "firewall", "doctor", "mcp"):
         assert sub in result.output
 
@@ -135,7 +140,8 @@ def test_cli_leaf_help_triggers_lazy_imports():
     for cmd in (
         ["vm", "--help"], ["ct", "--help"], ["cluster", "--help"],
         ["storage", "--help"], ["backup", "--help"], ["ha", "--help"],
-        ["pool", "--help"], ["firewall", "--help"], ["doctor", "--help"],
+        ["pool", "--help"], ["firewall", "--help"], ["diagnose", "--help"],
+        ["doctor", "--help"],
     ):
         result = runner.invoke(app, cmd)
         assert result.exit_code == 0, f"{cmd} failed: {result.output}"
@@ -159,6 +165,7 @@ def test_cli_leaf_help_triggers_lazy_imports():
         ["ha", "status", "--help"], ["ha", "resources", "--help"],
         ["pool", "list", "--help"], ["pool", "members", "--help"],
         ["firewall", "vm-rules", "--help"], ["firewall", "cluster-status", "--help"],
+        ["diagnose", "node-pressure", "--help"], ["diagnose", "guest-health", "--help"],
     ):
         result = runner.invoke(app, cmd)
         assert result.exit_code == 0, f"{cmd} failed: {result.output}"
@@ -171,6 +178,20 @@ def test_mcp_list_tools_exposes_expected_tools():
     tools = asyncio.run(mcp.list_tools())
     names = {t.name for t in tools}
     assert EXPECTED_TOOLS <= names, f"missing: {EXPECTED_TOOLS - names}"
+
+
+@pytest.mark.unit
+def test_registered_tool_count_is_pinned():
+    """Drift guard: the advertised tool count must match the registry.
+
+    This is the number an MCP client lists, including the generic governance
+    tools ``undo_list`` / ``undo_apply``.
+    """
+    from mcp_server import _shared
+
+    assert len(_shared.mcp._tool_manager._tools) == 43, (
+        "tool count changed — update README/SKILL/server.json too"
+    )
 
 
 @pytest.mark.unit

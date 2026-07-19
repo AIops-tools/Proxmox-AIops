@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from proxmox_aiops.governance import sanitize
+from proxmox_aiops.governance import opt_str
 
 
 def _ha_not_configured(exc: Exception) -> bool:
@@ -36,10 +36,10 @@ def ha_status(conn: Any) -> dict:
         raise
     entries = [
         {
-            "id": sanitize(str(i.get("id", "")), 128),
-            "type": sanitize(str(i.get("type", "")), 32),
-            "node": sanitize(str(i.get("node", "")), 64),
-            "status": sanitize(str(i.get("status", "")), 64),
+            "id": opt_str(i.get("id"), 128),
+            "type": opt_str(i.get("type"), 32),
+            "node": opt_str(i.get("node"), 64),
+            "status": opt_str(i.get("status"), 64),
             "quorate": i.get("quorate"),
         }
         for i in items
@@ -57,10 +57,10 @@ def ha_resource_list(conn: Any) -> list[dict]:
         raise
     return [
         {
-            "sid": sanitize(str(r.get("sid", "")), 128),
-            "type": sanitize(str(r.get("type", "")), 32),
-            "state": sanitize(str(r.get("state", "")), 32),
-            "group": sanitize(str(r.get("group", "")), 64),
+            "sid": opt_str(r.get("sid"), 128),
+            "type": opt_str(r.get("type"), 32),
+            "state": opt_str(r.get("state"), 32),
+            "group": opt_str(r.get("group"), 64),
             "max_restart": r.get("max_restart"),
             "max_relocate": r.get("max_relocate"),
         }

@@ -11,7 +11,7 @@ from __future__ import annotations
 from typing import Any
 
 from proxmox_aiops.connection import get_default_node
-from proxmox_aiops.governance import sanitize
+from proxmox_aiops.governance import opt_str, sanitize
 
 
 class ContainerNotFoundError(Exception):
@@ -43,8 +43,8 @@ def list_cts(conn: Any, node: str | None = None) -> list[dict]:
             out.append(
                 {
                     "vmid": int(ct["vmid"]),
-                    "name": sanitize(str(ct.get("name", "")), 128),
-                    "status": sanitize(str(ct.get("status", "")), 32),
+                    "name": opt_str(ct.get("name"), 128),
+                    "status": opt_str(ct.get("status"), 32),
                     "cpu": ct.get("cpus", ct.get("cpu")),
                     "mem": ct.get("maxmem", ct.get("mem")),
                     "node": candidate,

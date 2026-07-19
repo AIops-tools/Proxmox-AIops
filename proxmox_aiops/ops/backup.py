@@ -11,7 +11,7 @@ from __future__ import annotations
 from typing import Any
 
 from proxmox_aiops.connection import get_default_node
-from proxmox_aiops.governance import sanitize
+from proxmox_aiops.governance import opt_str, sanitize
 from proxmox_aiops.ops.vm_lifecycle import NodeRequiredError, VMNotFoundError
 
 
@@ -94,12 +94,12 @@ def list_backups(
             continue
         out.append(
             {
-                "volid": sanitize(str(v.get("volid", "")), 256),
+                "volid": opt_str(v.get("volid"), 256),
                 "vmid": v.get("vmid"),
                 "size": v.get("size"),
-                "format": sanitize(str(v.get("format", "")), 32),
+                "format": opt_str(v.get("format"), 32),
                 "ctime": v.get("ctime"),
-                "notes": sanitize(str(v.get("notes", "")), 200),
+                "notes": opt_str(v.get("notes"), 200),
             }
         )
     return out

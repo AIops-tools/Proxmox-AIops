@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from proxmox_aiops.governance import sanitize
+from proxmox_aiops.governance import opt_str
 from proxmox_aiops.ops.vm_lifecycle import _find_node_for_vmid
 
 
@@ -20,14 +20,14 @@ def vm_firewall_rules(conn: Any, vmid: int, node: str | None = None) -> list[dic
     return [
         {
             "pos": r.get("pos"),
-            "type": sanitize(str(r.get("type", "")), 16),
-            "action": sanitize(str(r.get("action", "")), 32),
-            "proto": sanitize(str(r.get("proto", "")), 16),
-            "dport": sanitize(str(r.get("dport", "")), 32),
-            "source": sanitize(str(r.get("source", "")), 64),
-            "dest": sanitize(str(r.get("dest", "")), 64),
+            "type": opt_str(r.get("type"), 16),
+            "action": opt_str(r.get("action"), 32),
+            "proto": opt_str(r.get("proto"), 16),
+            "dport": opt_str(r.get("dport"), 32),
+            "source": opt_str(r.get("source"), 64),
+            "dest": opt_str(r.get("dest"), 64),
             "enable": r.get("enable"),
-            "comment": sanitize(str(r.get("comment", "")), 200),
+            "comment": opt_str(r.get("comment"), 200),
         }
         for r in rules
     ]
@@ -38,7 +38,7 @@ def cluster_firewall_status(conn: Any) -> dict:
     opts = conn.cluster.firewall.options.get()
     return {
         "enable": opts.get("enable"),
-        "policy_in": sanitize(str(opts.get("policy_in", "")), 32),
-        "policy_out": sanitize(str(opts.get("policy_out", "")), 32),
-        "log_ratelimit": sanitize(str(opts.get("log_ratelimit", "")), 64),
+        "policy_in": opt_str(opts.get("policy_in"), 32),
+        "policy_out": opt_str(opts.get("policy_out"), 32),
+        "log_ratelimit": opt_str(opts.get("log_ratelimit"), 64),
     }

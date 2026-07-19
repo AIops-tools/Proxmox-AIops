@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from proxmox_aiops.connection import get_default_node
-from proxmox_aiops.governance import sanitize
+from proxmox_aiops.governance import opt_str
 
 # Single shared exception type: cli/_common.py and mcp_server/_shared.py catch
 # the vm_lifecycle class — a local duplicate here would dodge those handlers
@@ -32,8 +32,8 @@ def list_storage(conn: Any, node: str | None = None) -> list[dict]:
     for s in conn.nodes(resolved).storage.get():
         out.append(
             {
-                "storage": sanitize(str(s.get("storage", "")), 64),
-                "type": sanitize(str(s.get("type", "")), 32),
+                "storage": opt_str(s.get("storage"), 64),
+                "type": opt_str(s.get("type"), 32),
                 "active": s.get("active"),
                 "enabled": s.get("enabled"),
                 "total": s.get("total"),
@@ -64,9 +64,9 @@ def list_storage_content(
     for v in items:
         out.append(
             {
-                "volid": sanitize(str(v.get("volid", "")), 256),
-                "content": sanitize(str(v.get("content", "")), 32),
-                "format": sanitize(str(v.get("format", "")), 32),
+                "volid": opt_str(v.get("volid"), 256),
+                "content": opt_str(v.get("content"), 32),
+                "format": opt_str(v.get("format"), 32),
                 "size": v.get("size"),
                 "vmid": v.get("vmid"),
             }

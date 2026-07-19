@@ -73,10 +73,12 @@ def test_task_log_infers_node_and_passes_limit():
     conn.nodes.return_value.tasks.return_value.log.get.return_value = [
         {"n": 1, "t": "started"},
     ]
-    lines = cl.task_log(conn, "UPID:pve2:aa:bb", limit=5)
+    result = cl.task_log(conn, "UPID:pve2:aa:bb", limit=5)
     conn.nodes.assert_called_once_with("pve2")
-    conn.nodes.return_value.tasks.return_value.log.get.assert_called_once_with(limit=5)
-    assert lines[0]["t"] == "started"
+    # limit+1 is fetched so a truncated read can announce itself.
+    conn.nodes.return_value.tasks.return_value.log.get.assert_called_once_with(limit=6)
+    assert result["lines"][0]["t"] == "started"
+    assert result["truncated"] is False
 
 
 @pytest.mark.unit
@@ -91,3 +93,24 @@ def test_node_status_requires_node():
     conn = MagicMock(name="conn")
     with pytest.raises(ValueError, match="requires a node name"):
         cl.node_status(conn, "")
+
+
+@pytest.mark.unit
+def test_task_log_announces_truncation_and_caps_lines():
+    """More lines than the limit → truncated=True, and only `limit` returned.
+
+    This is the failure mode the envelope exists for: a bare list forces the
+    consumer to infer "there is more" from a length coincidence, and a long
+    result then gets reported as "no data returned".
+    """
+    conn = MagicMock(name="conn")
+    # 4 lines available, limit 3 → the ops layer asks for 4 and sees the overflow.
+    conn.nodes.return_value.tasks.return_value.log.get.return_value = [
+        {"n": i, "t": f"line{i}"} for i in range(1, 5)
+    ]
+    result = cl.task_log(conn, "UPID:pve1:aa:bb", limit=3)
+    assert result["truncated"] is True
+    assert result["returned"] == 3
+    assert len(result["lines"]) == 3
+    assert result["limit"] == 3
+    assert [ln["t"] for ln in result["lines"]] == ["line1", "line2", "line3"]

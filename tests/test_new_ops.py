@@ -145,8 +145,10 @@ def test_task_log_and_next_vmid():
     conn.nodes.return_value.tasks.return_value.log.get.return_value = [
         {"n": 1, "t": "started"}, {"n": 2, "t": "done"},
     ]
-    lines = cl.task_log(conn, "UPID:pve1:0001:task", limit=10)
-    assert lines[0]["t"] == "started"
+    result = cl.task_log(conn, "UPID:pve1:0001:task", limit=10)
+    assert result["lines"][0]["t"] == "started"
+    assert result["returned"] == 2
+    assert result["truncated"] is False
     conn.cluster.nextid.get.return_value = "101"
     assert cl.next_vmid(conn) == {"vmid": 101}
 

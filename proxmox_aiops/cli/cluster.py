@@ -89,8 +89,16 @@ def task_log(
 ) -> None:
     """Fetch the log of an async task by its UPID."""
     conn, _ = get_connection(target)
-    for ln in cl.task_log(conn, upid, node=node, limit=limit):
+    result = cl.task_log(conn, upid, node=node, limit=limit)
+    for ln in result["lines"]:
         console.print(f"  {ln.get('n')}: {ln.get('t')}")
+    if result["truncated"]:
+        console.print(
+            f"[yellow]… truncated at {result['returned']} lines — "
+            f"re-run with --limit above {result['limit']} for more.[/]"
+        )
+    elif not result["lines"]:
+        console.print("[dim]Task log is empty.[/]")
 
 
 @cluster_app.command("next-vmid")

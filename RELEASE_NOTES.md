@@ -1,33 +1,56 @@
-# Release notes
+# Release notes — proxmox-aiops 0.5.0
 
-## v0.1.0 (2026-06-22) — first release (preview)
+Previous release: 0.4.0.
 
-First public release of **proxmox-aiops** — governed Proxmox VE VM and container
-lifecycle operations for AI agents. Standalone and self-contained.
+## Headline: read-only mode
 
-### Highlights
-- **23 MCP tools** (8 read / 15 write):
-  - VM lifecycle: list/get/config, start/stop/shutdown/reboot, reconfigure,
-    clone, delete, migrate
-  - Snapshots: create/delete/list/rollback
-  - LXC containers: list/start/stop
-  - Cluster/tasks: node list, cluster status, async task (UPID) polling
-  - Storage: pool list, content list
-- **CLI + MCP server** (`proxmox-aiops` and `proxmox-aiops mcp`).
-- **Built-in governance harness** (`proxmox_aiops.governance`, no external
-  dependency): unified audit log under `~/.proxmox-aiops/`, policy engine,
-  token/runaway budget guard, undo-token recording, and graduated-autonomy
-  risk tiers. State dir relocatable via `PROXMOX_AIOPS_HOME`.
-- **Reversibility**: write ops with a clean inverse (start/stop/shutdown/
-  reconfigure/clone/migrate/snapshot-create, container start/stop) record an
-  undo descriptor; irreversible ops (delete, snapshot-rollback) declare none
-  and are tagged `high` risk.
-- **Safety**: destructive CLI commands require double confirmation + `--dry-run`;
-  all API text is sanitized; TLS verification on by default.
+```bash
+export PROXMOX_READ_ONLY=1
+```
 
-### Notes
-- Preview (0.x): broad coverage of common operations, not yet exhaustive — see
-  `references/capabilities.md` for the "not yet covered" list.
-- Proxmox writes are asynchronous; poll completion with `cluster task-status`.
-- Verified with a mocked Proxmox API (9 smoke tests); not yet exercised against
-  a live PVE cluster.
+With this set the **18 write tools are never registered** — an MCP
+client lists **25 tools instead of 43**. The writes are not hidden
+behind a flag and not merely refused on call: they are absent from the session,
+so a model cannot invoke one and cannot be argued into one. For a reviewer this
+is checkable rather than promised — connect, list the tools, and the writes are
+not there.
+
+Enforcement is two layers deep: the `@governed_tool` harness refuses every
+non-read operation (covering the CLI and in-process callers too), and the MCP
+server removes write tools from `list_tools()`. Changing entry point does not
+get around it.
+
+## BREAKING — return shapes changed
+
+This release changes payloads that callers may be parsing. Both changes exist
+to stop a result from misrepresenting itself:
+
+1. **Absent fields are now `null`, not `""`.** A missing value and an empty value
+   were previously indistinguishable, which invited consumers to invent the
+   difference. Keys are still always present — only the value may be null.
+2. **Anything with a `limit` now returns an envelope** —
+   `{"<items>": [...], "returned": N, "limit": L, "truncated": bool}`. Truncation is
+   *measured* (one extra row is fetched), never inferred from the page happening to
+   be full. Where a genuine pre-cap total is knowable it is reported as `total`;
+   where it isn't, `total` is deliberately omitted rather than echoing `returned`.
+
+## New: read-only diagnostics / RCA
+
+Two new read-only analyses — `node_pressure_rca` and `guest_health_rca` — plus a
+`diagnose` CLI group. Every finding cites the measured number that tripped it
+along with a cause and a concrete action, ranked worst-first with an explicit
+`rank` field, so priority is stated in the payload rather than implied by list
+order. Transparent heuristics, not a black-box verdict.
+
+## Also in this release
+
+- **`docs/VERIFICATION.md`** — what the mock suite actually guarantees, a live
+  verification checklist, and the criteria for claiming this tool verified.
+- **`skills/proxmox-aiops/references/agent-guardrails.md`** — for driving this tool with a
+  smaller / local model: which guardrails are now enforced for you, and a
+  ready-made system prompt for the rest.
+- Expanded operator playbooks in the skill documentation.
+- The advertised tool count now matches what an MCP client actually lists
+  (it includes `undo_list` / `undo_apply`), and a release gate keeps it honest.
+- The `(preview)` label has been dropped. It never meant unreleased; verification
+  status now lives in `docs/VERIFICATION.md` where it can be specific.

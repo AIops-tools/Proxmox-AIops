@@ -79,7 +79,7 @@ def tool_errors(shape: str = "dict") -> Callable:
 mcp = FastMCP(
     "proxmox-aiops",
     instructions=(
-        "Proxmox VE operations (preview): QEMU VM lifecycle (list/get/config, "
+        "Proxmox VE operations: QEMU VM lifecycle (list/get/config, "
         "start/stop/shutdown/reboot, reconfigure, clone, delete, migrate), "
         "snapshots (create/delete/list/rollback), LXC containers (list/start/stop), "
         "cluster/nodes + async task polling, and storage listing. Every tool runs "
