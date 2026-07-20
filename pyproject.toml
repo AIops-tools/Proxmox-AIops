@@ -4,14 +4,21 @@ build-backend = "hatchling.build"
 
 [project]
 name = "proxmox-aiops"
-version = "0.5.0"
+version = "0.6.0"
 description = "Proxmox VE AI-powered VM/container lifecycle operations with a built-in governance harness (audit, budget, undo, risk tiers)"
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.11"
-authors = [{ name = "wei", email = "zhouwei008@gmail.com" }]
+authors = [{ name = "Wei Zhou", email = "zhouwei008@gmail.com" }]
 dependencies = [
     "proxmoxer>=2.0,<3.0",
+    # proxmoxer declares NO dependencies at all — not even for its own default
+    # backend. Its 'https' backend imports requests and, without it, raises
+    # "Chosen backend requires 'requests' module" on the first connect, so the
+    # tool cannot reach any server as installed. There is no proxmoxer extra to
+    # ask for (it publishes none), so requests must be declared here directly.
+    # Every test mocks ProxmoxAPI, which is why nothing in the suite caught it.
+    "requests>=2.31",
     "typer>=0.12,<1.0",
     "rich>=13.0,<16.0",
     "pyyaml>=6.0,<7.0",

@@ -46,7 +46,7 @@ def undo_recorder(monkeypatch):
     recorded: list[dict] = []
 
     class _Store:
-        def record(self, *, skill, tool, undo_descriptor, orig_params):
+        def record(self, *, skill, tool, undo_descriptor, orig_params, effect_verified=True):
             recorded.append(undo_descriptor)
             return f"undo-{len(recorded)}"
 

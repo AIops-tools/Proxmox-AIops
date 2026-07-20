@@ -259,7 +259,7 @@ def test_backup_restore_undo_deletes_only_new_vm(monkeypatch):
     recorded = {}
 
     class _Store:
-        def record(self, *, skill, tool, undo_descriptor, orig_params):
+        def record(self, *, skill, tool, undo_descriptor, orig_params, effect_verified=True):
             recorded["descriptor"] = undo_descriptor
             return "undo-r"
 
@@ -289,7 +289,7 @@ def test_move_disk_undo_moves_back_to_source(monkeypatch):
     recorded = {}
 
     class _Store:
-        def record(self, *, skill, tool, undo_descriptor, orig_params):
+        def record(self, *, skill, tool, undo_descriptor, orig_params, effect_verified=True):
             recorded["descriptor"] = undo_descriptor
             return "undo-m"
 
