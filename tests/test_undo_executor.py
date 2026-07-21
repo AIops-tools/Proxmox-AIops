@@ -126,6 +126,31 @@ def test_cli_undo_apply_dry_run_renders(gov_home):
 
 
 @pytest.mark.unit
+def test_cli_undo_apply_dry_run_unpreviewable_errors_without_banner(gov_home):
+    """A preview that cannot be produced must not render as a successful one.
+
+    Before the reroute this printed a cheerful DRY-RUN banner reading
+    ``inverse: ?`` — the '?' was a hardcoded fallback standing in for a token
+    that does not exist, so the preview claimed to describe an operation it had
+    failed to look up. ``undo_apply`` flattens the ValueError to
+    ``{"error": ...}`` (its body raises inside ``@tool_errors``), and
+    ``dry_run_preview`` turns that into a red line + exit 1 — what the real
+    apply would do. This is the one live exercise of the helper's dict-error
+    branch: the harness's own guards (read-only, deny, budget) RAISE past
+    ``tool_errors`` in this repo rather than returning an error dict.
+    """
+    from typer.testing import CliRunner
+
+    from proxmox_aiops.cli import app
+
+    result = CliRunner().invoke(app, ["undo", "apply", "no-such-token", "--dry-run"])
+    assert result.exit_code != 0, result.output
+    assert "DRY-RUN" not in result.output
+    assert "Unknown undo id" in " ".join(result.output.split())
+    assert _CALLS == []
+
+
+@pytest.mark.unit
 def test_undo_apply_audits_both_wrapper_and_inverse(gov_home):
     uid = _record()
     gov.undo_apply(undo_id=uid)

@@ -11,7 +11,7 @@ description: >
   Also use it to diagnose cluster health — rank nodes by CPU/memory/disk pressure and scan guests for saturation (read-only RCA).
   Always use this skill for "list proxmox vms", "start proxmox vm", "stop proxmox vm", "proxmox snapshot", "proxmox backup", "restore proxmox vm", "resize proxmox disk", "proxmox vm status", "migrate proxmox vm", "proxmox container", "proxmox ha", "proxmox pool", "proxmox firewall", "list proxmox storage", "proxmox node pressure", or "why is proxmox slow" when the context is explicitly Proxmox / Proxmox VE / PVE.
   Do NOT use for non-Proxmox hypervisors, Kubernetes, or cloud providers.
-  Broad coverage of common Proxmox operations, with a built-in governance harness (audit, policy, token budget, undo, risk-tiers).
+  Broad coverage of common Proxmox operations, with a built-in governance harness (audit, token budget, undo, risk-tier labels).
 installer:
   kind: uv
   package: proxmox-aiops
@@ -20,10 +20,10 @@ allowed-tools:
   - Bash
 metadata: {"openclaw":{"requires":{"env":["PROXMOX_AIOPS_CONFIG"],"bins":["proxmox-aiops"],"config":["~/.proxmox-aiops/config.yaml","~/.proxmox-aiops/.env"]},"optional":{"env":["PROXMOX_TARGET_SECRET"]},"primaryEnv":"PROXMOX_AIOPS_CONFIG","homepage":"https://github.com/AIops-tools/Proxmox-AIops","emoji":"🧱","os":["macos","linux"]}}
 compatibility: >
-  Standalone, self-governed Proxmox VE operations. The governance harness (audit, policy, token/runaway budget, undo, risk-tiers) is bundled in the package — no external skill-family dependency.
+  Standalone, self-governed Proxmox VE operations. The governance harness (audit, token/runaway budget, undo, risk-tier labels) is bundled in the package — no external skill-family dependency.
   All write operations are audited to a local SQLite DB under ~/.proxmox-aiops/ (relocatable via PROXMOX_AIOPS_HOME).
   Credentials: Each Proxmox target requires a per-target secret env var in ~/.proxmox-aiops/.env following the pattern PROXMOX_<TARGET_NAME_UPPER>_SECRET (API token UUID for token auth, or login password). Secrets are never logged or echoed; .env should be chmod 600.
-  Destructive operations (vm stop/delete/snapshot-delete/snapshot-rollback, ct stop) require double confirmation at the CLI layer and support --dry-run. All write tools pass through the @governed_tool decorator (pre-check + budget guard + audit + risk-tier gate). Reversible writes record an inverse undo descriptor to the undo store.
+  Destructive operations (vm stop/delete/snapshot-delete/snapshot-rollback, ct stop) require double confirmation at the CLI layer and support --dry-run. All write tools pass through the @governed_tool decorator (budget guard + audit + risk-tier tagging). Reversible writes record an inverse undo descriptor to the undo store.
   Webhooks: none — no outbound network calls beyond the configured Proxmox API endpoint.
   SSL: verify_ssl defaults to true; disable only for self-signed lab certificates.
   Transitive dependencies: proxmoxer (Proxmox API client) and the MCP SDK. No post-install scripts or background services.
@@ -33,7 +33,7 @@ compatibility: >
 
 > **Disclaimer**: This is a community-maintained open-source project and is **not affiliated with, endorsed by, or sponsored by Proxmox Server Solutions GmbH.** "Proxmox" is a trademark of its owner. Source code is publicly auditable at [github.com/AIops-tools/Proxmox-AIops](https://github.com/AIops-tools/Proxmox-AIops) under the MIT license.
 
-Governed VM and container lifecycle operations for Proxmox VE — **43 MCP tools**, every one wrapped with the bundled `@governed_tool` harness: a local unified audit log under `~/.proxmox-aiops/`, policy engine, token/runaway budget guard, undo-token recording, and graduated-autonomy risk tiers.
+Governed VM and container lifecycle operations for Proxmox VE — **43 MCP tools**, every one wrapped with the bundled `@governed_tool` harness: a local unified audit log under `~/.proxmox-aiops/`, token/runaway budget guard, undo-token recording, and descriptive risk-tier labels.
 
 > **Standalone**: the governance harness is bundled in the package (`proxmox_aiops.governance`) — proxmox-aiops has no external skill-family dependency. Coverage focuses on common Proxmox operations and is not yet exhaustive.
 
@@ -140,7 +140,7 @@ proxmox-aiops doctor
 | Undo | `undo_list` | Read |
 | | `undo_apply` | Write |
 
-**Harness features that light up**: write tools with a clean inverse (`vm_start`/`vm_stop`/`vm_shutdown`/`vm_reconfigure`/`vm_clone`/`vm_migrate`/`vm_snapshot_create`/`vm_move_disk`/`ct_start`/`ct_stop`) pass an `undo=` lambda so the harness records an inverse descriptor (with `_undo_id`) to the undo store — `vm_reconfigure` captures the prior cores/memory, `vm_clone`'s inverse is `vm_delete(newid)`, `vm_migrate`'s is migrate-back, `vm_move_disk`'s is move-back to the captured source storage. `backup_restore` records a `vm_delete` inverse **only** when it restored into a free VMID (a forced overwrite is destructive and declares none). Irreversible writes (`vm_delete`, `vm_snapshot_rollback`, `backup_restore` with `force`) declare no undo and are tagged `risk_level=high`; `vm_resize_disk` is grow-only and refuses shrink before any API call. All 43 tools are audit-logged under `~/.proxmox-aiops/` and pass through the policy pre-check + budget/runaway guard + graduated risk-tier gate. Proxmox writes are async (return a task UPID) — poll with `task_status` (and read lines with `task_log`) instead of re-issuing (the runaway breaker backs this up).
+**Harness features that light up**: write tools with a clean inverse (`vm_start`/`vm_stop`/`vm_shutdown`/`vm_reconfigure`/`vm_clone`/`vm_migrate`/`vm_snapshot_create`/`vm_move_disk`/`ct_start`/`ct_stop`) pass an `undo=` lambda so the harness records an inverse descriptor (with `_undo_id`) to the undo store — `vm_reconfigure` captures the prior cores/memory, `vm_clone`'s inverse is `vm_delete(newid)`, `vm_migrate`'s is migrate-back, `vm_move_disk`'s is move-back to the captured source storage. `backup_restore` records a `vm_delete` inverse **only** when it restored into a free VMID (a forced overwrite is destructive and declares none). Irreversible writes (`vm_delete`, `vm_snapshot_rollback`, `backup_restore` with `force`) declare no undo and are tagged `risk_level=high`; `vm_resize_disk` is grow-only and refuses shrink before any API call. All 43 tools are audit-logged under `~/.proxmox-aiops/` and pass through the budget/runaway guard + risk-tier tagging. Proxmox writes are async (return a task UPID) — poll with `task_status` (and read lines with `task_log`) instead of re-issuing (the runaway breaker backs this up).
 
 ## CLI Quick Reference
 
@@ -195,13 +195,16 @@ Either pass `--node <name>` / `node=<name>`, or set `node:` on the target in `co
 
 ## Audit & Safety
 
-All operations are automatically audited via the bundled `@governed_tool` decorator (`proxmox_aiops.governance`):
-- Every tool call logged to `~/.proxmox-aiops/audit.db` (local SQLite audit DB; relocate with `PROXMOX_AIOPS_HOME`)
-- Policy rules enforced via `~/.proxmox-aiops/rules.yaml` (deny rules, maintenance windows, risk tiers)
-- **Secure by default (v0.3.0+)**: with no `~/.proxmox-aiops/rules.yaml`, high/critical operations are denied unless `PROXMOX_AUDIT_APPROVED_BY` names an approver (set `PROXMOX_AUDIT_RATIONALE` too). `proxmox-aiops init` seeds a starter rules.yaml; an operator-authored rules file is honoured as-is.
-- Budget / runaway guard caps cumulative tool calls and wall-time, and trips on tight poll/retry loops
-- Undo store records inverse descriptors for reversible writes (start/stop/shutdown/reconfigure/clone/migrate/snapshot-create, container start/stop)
-- Graduated-autonomy risk tiers gate write operations (require a recorded approver for the highest tiers)
+The skill delivers reads and writes and records them; it does **not** decide whether a write is
+permitted. That is your agent's judgement, or the permission of the account you connect it with —
+use a Proxmox VE user or API token granted only read privileges (no VM.*/Datastore.* write roles),
+and writes then fail at the server. There is no read-only switch, policy file, or approval gate.
+
+- **Audit is the guarantee, and it is not bypassable.** Every operation — MCP and CLI alike — is logged to `~/.proxmox-aiops/audit.db` (relocatable via `PROXMOX_AIOPS_HOME`): params, result, status, duration, and the risk tier. The CLI writes the same row the MCP path does.
+- `PROXMOX_AUDIT_APPROVED_BY` / `PROXMOX_AUDIT_RATIONALE` are optional annotations recorded on the audit row (who/why); they are never required and never block.
+- **Runaway guard** — a safety backstop, not authorization: the same call looped in a tight window trips a circuit breaker. Disable with `PROXMOX_RUNAWAY_MAX=0`; optional hard ceilings via `PROXMOX_MAX_TOOL_CALLS` / `PROXMOX_MAX_TOOL_SECONDS`.
+- Undo store records inverse descriptors for reversible writes (start/stop/shutdown/reconfigure/clone/migrate/snapshot-create, container start/stop).
+- Writes support `--dry-run` / `dry_run=True` and double confirmation at the CLI.
 
 The harness is bundled in the package — no external dependency, no manual setup.
 

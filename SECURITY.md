@@ -30,8 +30,11 @@ Every MCP tool runs through the bundled `@governed_tool` harness
 - **Token/runaway budget** — hard ceilings (`PROXMOX_MAX_TOOL_CALLS` /
   `PROXMOX_MAX_TOOL_SECONDS`) plus an on-by-default guard that trips a tight
   poll/retry loop, preventing unbounded API consumption.
-- **Graduated risk tiers** — `~/.proxmox-aiops/rules.yaml` `risk_tiers` gate
-  writes by environment/tag; the highest tiers require a recorded approver.
+- **Risk tiers** — each tool's `risk_level` is recorded on the audit row as a
+  descriptive tier (none/confirm/review). It is a label for reviewers, not a
+  gate: whether a write is permitted is the connecting account's privileges or
+  the agent's judgement, not the skill's. `PROXMOX_AUDIT_APPROVED_BY` /
+  `PROXMOX_AUDIT_RATIONALE` are optional annotations, never required.
 - **Undo-token recording** — reversible writes record an inverse descriptor so
   a change can be rolled back.
 

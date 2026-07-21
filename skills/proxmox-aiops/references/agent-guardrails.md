@@ -13,11 +13,10 @@ harness is a guarantee. Anything below that we could move into the harness, we d
 
 | You might be tempted to prompt | Why you don't need to |
 |---|---|
-| "Work read-only, never modify anything" | Set `PROXMOX_READ_ONLY=1`. Write tools are then **not registered at all** — they never appear in the tool list, so the model cannot call one even if it tries. The `@governed_tool` harness independently refuses writes, so the CLI is covered too. |
 | "Don't invent a value when a field is missing" | A field the API did not return comes back as `null`, never as `""`. Absent and empty are distinguishable in the payload. |
 | "Tell me if the output was cut off" | Anything with a `limit` returns `{"lines": [...], "returned": N, "limit": L, "truncated": true/false}`. Truncation is measured (one extra row is fetched), not guessed. |
 | "Preserve the ordering / tell me what's most urgent" | `diagnose` findings carry an explicit 1-based `rank`, worst-first. Priority is in the payload, not implied by list position. |
-| "Confirm before anything destructive" | Destructive operations require `--dry-run`-able preview + double confirmation at the CLI, and a named approver (`PROXMOX_AUDIT_APPROVED_BY`) for high-risk tiers. |
+| "Confirm before anything destructive" | Destructive operations require a `--dry-run`-able preview + double confirmation at the CLI. |
 | "Log what you did" | Every call is audited to `~/.proxmox-aiops/audit.db` regardless of what the model says it did. |
 
 ## What still needs a prompt
@@ -58,19 +57,22 @@ SCOPE
 
 ## Recommended setup for a local model
 
+Authorization is not this tool's job — decide it via the account you connect
+with or the agent's prompt, not a switch in the tool. To work read-only, connect
+with a Proxmox VE user or API token granted only read privileges (no
+`VM.*`/`Datastore.*` write roles); a write then fails at the server, the place
+that actually owns the permission.
+
 ```bash
-# Read-only until you trust the setup — this is enforced, not advisory.
-export PROXMOX_READ_ONLY=1
-proxmox-aiops doctor
+proxmox-aiops doctor          # verify connectivity with your least-privilege token
 ```
 
-Then, when you are ready to allow writes, unset it and set an approver so the
-high-risk tier has an accountable name on it:
+Optionally, annotate who is running changes and why — these land on the audit
+row, and are never required and never blocking:
 
 ```bash
-unset PROXMOX_READ_ONLY
 export PROXMOX_AUDIT_APPROVED_BY="your.name@example.com"
-export PROXMOX_AUDIT_RATIONALE="scheduled maintenance window 2026-07-20"
+export PROXMOX_AUDIT_RATIONALE="scheduled maintenance window"
 ```
 
 ## If your model still struggles

@@ -1,7 +1,7 @@
 """QEMU VM lifecycle MCP tools: list/get, start/stop, snapshot CRUD.
 
 Every tool is wrapped with ``@governed_tool`` (the proxmox-aiops harness):
-policy pre-check, budget/runaway guard, graduated-autonomy risk-tier gate,
+budget/runaway guard, risk-tier tagging,
 audit logging to ~/.proxmox-aiops/audit.db, and undo-token recording. Write tools
 that have a clean inverse pass an ``undo=`` lambda so the harness records a
 reversal descriptor to the undo store.

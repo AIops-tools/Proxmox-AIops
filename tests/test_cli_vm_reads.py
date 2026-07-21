@@ -1,18 +1,33 @@
 """CLI tests for ``proxmox-aiops vm ...`` read commands and write dry-run
 previews (no live PVE). Read commands patch the module-local ``get_connection``;
-dry-run previews take the early branch and never touch a connection.
+dry-run previews are routed through the governed twin with ``dry_run=True``, so
+they are audited like any other governed call and must issue no mutating verb.
 """
 
 from __future__ import annotations
 
+import sqlite3
 from unittest.mock import MagicMock
 
 import pytest
+from conftest import assert_no_mutating_call
 from typer.testing import CliRunner
 
 from proxmox_aiops.cli import app
 
 runner = CliRunner()
+
+
+def _audit_tools(home) -> list[str]:
+    """Tool names recorded in the audit log under ``home`` (empty if none)."""
+    db = home / "audit.db"
+    if not db.exists():
+        return []
+    conn = sqlite3.connect(db)
+    try:
+        return [r[0] for r in conn.execute("SELECT tool FROM audit_log ORDER BY id")]
+    finally:
+        conn.close()
 
 
 def _patch_conn(monkeypatch, conn: MagicMock) -> None:
@@ -102,28 +117,52 @@ def test_vm_agent_ping_not_responding(monkeypatch):
     assert "not responding" in result.output
 
 
-# ─── write dry-run previews (no connection touched) ──────────────────────────
+# ─── write dry-run previews ──────────────────────────────────────────────────
+
+
+def _patch_governed_conn(monkeypatch, conn: MagicMock) -> None:
+    """Put the mock on the GOVERNED path too.
+
+    The rerouted dry-run branches call the twins in ``mcp_server.tools``, which
+    resolve their connection through ``mcp_server._shared._get_connection`` —
+    not the CLI module's ``get_connection``. Patching only the latter would make
+    every no-mutation assertion below vacuously true.
+    """
+    import mcp_server.tools.disk as disk_tools
+    import mcp_server.tools.vm as vm_tools
+
+    for mod in (vm_tools, disk_tools):
+        monkeypatch.setattr(mod, "_get_connection", lambda target=None: conn)
 
 
 @pytest.mark.unit
 @pytest.mark.parametrize(
-    "argv",
+    ("argv", "audited_as"),
     [
-        ["vm", "stop", "100", "--dry-run"],
-        ["vm", "shutdown", "100", "--dry-run"],
-        ["vm", "delete", "100", "--dry-run"],
-        ["vm", "snapshot-delete", "100", "--name", "s1", "--dry-run"],
-        ["vm", "snapshot-rollback", "100", "--name", "s1", "--dry-run"],
-        ["vm", "reconfigure", "100", "--cores", "4", "--dry-run"],
-        ["vm", "migrate", "100", "--to-node", "pve2", "--dry-run"],
-        ["vm", "resize-disk", "100", "--disk", "scsi0", "--size", "+10G", "--dry-run"],
-        ["vm", "move-disk", "100", "--disk", "scsi0", "--storage", "ceph", "--dry-run"],
+        (["vm", "stop", "100", "--dry-run"], "vm_stop"),
+        (["vm", "shutdown", "100", "--dry-run"], "vm_shutdown"),
+        (["vm", "delete", "100", "--dry-run"], "vm_delete"),
+        (["vm", "snapshot-delete", "100", "--name", "s1", "--dry-run"], "vm_snapshot_delete"),
+        (["vm", "snapshot-rollback", "100", "--name", "s1", "--dry-run"],
+         "vm_snapshot_rollback"),
+        (["vm", "migrate", "100", "--to-node", "pve2", "--dry-run"], "vm_migrate"),
+        (["vm", "resize-disk", "100", "--disk", "scsi0", "--size", "+10G", "--dry-run"],
+         "vm_resize_disk"),
+        # Twins without a dry_run parameter: the CLI cannot preview through them
+        # without performing the write, so these two previews are still the old
+        # hardcoded banner — unguarded and unaudited. They are listed here so the
+        # gap is visible and shrinks when the twins gain the parameter.
+        (["vm", "reconfigure", "100", "--cores", "4", "--dry-run"], None),
+        (["vm", "move-disk", "100", "--disk", "scsi0", "--storage", "ceph", "--dry-run"], None),
     ],
 )
-def test_vm_write_dry_run_previews(monkeypatch, argv):
+def test_vm_write_dry_run_previews(monkeypatch, tmp_path, argv, audited_as):
+    """A preview renders, mutates nothing, and — when routed — is audited."""
     conn = MagicMock()
     _patch_conn(monkeypatch, conn)
+    _patch_governed_conn(monkeypatch, conn)
     result = runner.invoke(app, argv)
     assert result.exit_code == 0, result.output
     assert "DRY-RUN" in result.output
-    conn.nodes.assert_not_called()
+    assert_no_mutating_call(conn)
+    assert _audit_tools(tmp_path) == ([audited_as] if audited_as else [])

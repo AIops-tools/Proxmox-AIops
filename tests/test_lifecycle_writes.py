@@ -3,8 +3,13 @@
 Every governed lifecycle write tool is invoked twice against a mocked proxmoxer
 connection (the ``test_new_ops.py`` style — MagicMock resource-path proxies):
 
-  a. ``dry_run=True`` → NO API call is made and a ``dryRun`` preview comes back
-     (and no undo descriptor is recorded);
+  a. ``dry_run=True`` → a ``dryRun`` preview comes back having issued NO mutating
+     verb, having recorded NO undo descriptor, and — because ``@governed_tool``
+     wraps the function regardless of the ``dry_run`` argument — having written
+     an audit row. A preview may read; it must never write. "Made no call at
+     all" is a stricter rule than the harness actually promises, and encoding it
+     here would forbid a preview from ever consulting live state to decide what
+     it would do;
   b. the real call → the expected proxmoxer method/path is hit with the right
      params.
 
@@ -15,9 +20,11 @@ state captured off the mock — not guessed.
 
 from __future__ import annotations
 
+import sqlite3
 from unittest.mock import MagicMock
 
 import pytest
+from conftest import assert_no_mutating_call
 
 import proxmox_aiops.governance.audit as audit_mod
 import proxmox_aiops.governance.policy as policy_mod
@@ -25,6 +32,15 @@ import proxmox_aiops.governance.undo as undo_mod
 from mcp_server.tools import disk as disk_tools
 from mcp_server.tools import lxc as lxc_tools
 from mcp_server.tools import vm as vm_tools
+
+
+def _audit_tools(home) -> list[str]:
+    """Tool names recorded in the audit log under ``home`` (in call order)."""
+    conn = sqlite3.connect(home / "audit.db")
+    try:
+        return [r[0] for r in conn.execute("SELECT tool FROM audit_log ORDER BY id")]
+    finally:
+        conn.close()
 
 
 @pytest.fixture(autouse=True)
@@ -108,14 +124,15 @@ def test_risk_tiers_of_lifecycle_writes():
 
 
 @pytest.mark.unit
-def test_vm_stop_dry_run_makes_no_api_call(monkeypatch, undo_recorder):
+def test_vm_stop_dry_run_writes_nothing_but_is_audited(monkeypatch, undo_recorder, tmp_path):
     conn = _qemu_conn()
     _wire(monkeypatch, vm_tools, conn)
     out = vm_tools.vm_stop(vmid=100, dry_run=True, node="pve1")
     assert out["dryRun"] is True
     assert out["wouldStop"]["vmid"] == 100
-    conn.nodes.assert_not_called()
+    assert_no_mutating_call(conn)
     assert undo_recorder == []  # a preview must not record an undo
+    assert _audit_tools(tmp_path) == ["vm_stop"]  # but it IS audited
 
 
 @pytest.mark.unit
@@ -137,13 +154,14 @@ def test_vm_stop_real_call_and_undo_inverse(monkeypatch, undo_recorder):
 
 
 @pytest.mark.unit
-def test_vm_shutdown_dry_run_makes_no_api_call(monkeypatch, undo_recorder):
+def test_vm_shutdown_dry_run_writes_nothing_but_is_audited(monkeypatch, undo_recorder, tmp_path):
     conn = _qemu_conn()
     _wire(monkeypatch, vm_tools, conn)
     out = vm_tools.vm_shutdown(vmid=100, dry_run=True, node="pve1")
     assert out["dryRun"] is True and out["wouldShutdown"]["vmid"] == 100
-    conn.nodes.assert_not_called()
+    assert_no_mutating_call(conn)
     assert undo_recorder == []
+    assert _audit_tools(tmp_path) == ["vm_shutdown"]
 
 
 @pytest.mark.unit
@@ -162,12 +180,13 @@ def test_vm_shutdown_real_call_and_undo_inverse(monkeypatch, undo_recorder):
 
 
 @pytest.mark.unit
-def test_vm_delete_dry_run_makes_no_api_call(monkeypatch):
+def test_vm_delete_dry_run_writes_nothing_but_is_audited(monkeypatch, tmp_path):
     conn = _qemu_conn()
     _wire(monkeypatch, vm_tools, conn)
     out = vm_tools.vm_delete(vmid=100, dry_run=True, node="pve1")
     assert out["dryRun"] is True and out["wouldDelete"]["vmid"] == 100
-    conn.nodes.assert_not_called()
+    assert_no_mutating_call(conn)
+    assert _audit_tools(tmp_path) == ["vm_delete"]
 
 
 @pytest.mark.unit
@@ -187,14 +206,15 @@ def test_vm_delete_real_call_hits_delete_endpoint(monkeypatch, undo_recorder):
 
 
 @pytest.mark.unit
-def test_vm_migrate_dry_run_makes_no_api_call(monkeypatch, undo_recorder):
+def test_vm_migrate_dry_run_writes_nothing_but_is_audited(monkeypatch, undo_recorder, tmp_path):
     conn = _qemu_conn()
     _wire(monkeypatch, vm_tools, conn)
     out = vm_tools.vm_migrate(vmid=100, target_node="pve2", dry_run=True, node="pve1")
     assert out["dryRun"] is True
     assert out["wouldMigrate"] == {"vmid": 100, "target_node": "pve2", "online": True}
-    conn.nodes.assert_not_called()
+    assert_no_mutating_call(conn)
     assert undo_recorder == []
+    assert _audit_tools(tmp_path) == ["vm_migrate"]
 
 
 @pytest.mark.unit
@@ -217,13 +237,14 @@ def test_vm_migrate_real_call_and_undo_returns_to_captured_source(monkeypatch, u
 
 
 @pytest.mark.unit
-def test_vm_clone_dry_run_makes_no_api_call(monkeypatch, undo_recorder):
+def test_vm_clone_dry_run_writes_nothing_but_is_audited(monkeypatch, undo_recorder, tmp_path):
     conn = _qemu_conn()
     _wire(monkeypatch, vm_tools, conn)
     out = vm_tools.vm_clone(vmid=100, newid=101, dry_run=True, node="pve1")
     assert out["dryRun"] is True and out["wouldClone"]["newid"] == 101
-    conn.nodes.assert_not_called()
+    assert_no_mutating_call(conn)
     assert undo_recorder == []
+    assert _audit_tools(tmp_path) == ["vm_clone"]
 
 
 @pytest.mark.unit
@@ -243,13 +264,16 @@ def test_vm_clone_real_call_and_undo_deletes_new_vmid(monkeypatch, undo_recorder
 
 
 @pytest.mark.unit
-def test_vm_snapshot_create_dry_run_makes_no_api_call(monkeypatch, undo_recorder):
+def test_vm_snapshot_create_dry_run_writes_nothing_but_is_audited(
+    monkeypatch, undo_recorder, tmp_path
+):
     conn = _qemu_conn()
     _wire(monkeypatch, vm_tools, conn)
     out = vm_tools.vm_snapshot_create(vmid=100, name="pre-change", dry_run=True, node="pve1")
     assert out["dryRun"] is True and out["wouldSnapshot"]["name"] == "pre-change"
-    conn.nodes.assert_not_called()
+    assert_no_mutating_call(conn)
     assert undo_recorder == []
+    assert _audit_tools(tmp_path) == ["vm_snapshot_create"]
 
 
 @pytest.mark.unit
@@ -266,12 +290,13 @@ def test_vm_snapshot_create_real_call_and_undo_deletes_it(monkeypatch, undo_reco
 
 
 @pytest.mark.unit
-def test_vm_snapshot_delete_dry_run_makes_no_api_call(monkeypatch):
+def test_vm_snapshot_delete_dry_run_writes_nothing_but_is_audited(monkeypatch, tmp_path):
     conn = _qemu_conn()
     _wire(monkeypatch, vm_tools, conn)
     out = vm_tools.vm_snapshot_delete(vmid=100, name="old", dry_run=True, node="pve1")
     assert out["dryRun"] is True and out["wouldDeleteSnapshot"]["name"] == "old"
-    conn.nodes.assert_not_called()
+    assert_no_mutating_call(conn)
+    assert _audit_tools(tmp_path) == ["vm_snapshot_delete"]
 
 
 @pytest.mark.unit
@@ -287,12 +312,13 @@ def test_vm_snapshot_delete_real_call_hits_snapshot_delete(monkeypatch, undo_rec
 
 
 @pytest.mark.unit
-def test_vm_snapshot_rollback_dry_run_makes_no_api_call(monkeypatch):
+def test_vm_snapshot_rollback_dry_run_writes_nothing_but_is_audited(monkeypatch, tmp_path):
     conn = _qemu_conn()
     _wire(monkeypatch, vm_tools, conn)
     out = vm_tools.vm_snapshot_rollback(vmid=100, name="golden", dry_run=True, node="pve1")
     assert out["dryRun"] is True and out["wouldRollback"]["name"] == "golden"
-    conn.nodes.assert_not_called()
+    assert_no_mutating_call(conn)
+    assert _audit_tools(tmp_path) == ["vm_snapshot_rollback"]
 
 
 @pytest.mark.unit
@@ -311,13 +337,14 @@ def test_vm_snapshot_rollback_real_call_hits_rollback_endpoint(monkeypatch, undo
 
 
 @pytest.mark.unit
-def test_vm_resize_disk_dry_run_makes_no_api_call(monkeypatch):
+def test_vm_resize_disk_dry_run_writes_nothing_but_is_audited(monkeypatch, tmp_path):
     conn = _qemu_conn()
     _wire(monkeypatch, disk_tools, conn)
     out = disk_tools.vm_resize_disk(vmid=100, disk="scsi0", size="+10G", dry_run=True, node="pve1")
     assert out["dryRun"] is True
     assert out["wouldResize"] == {"vmid": 100, "disk": "scsi0", "size": "+10G"}
-    conn.nodes.assert_not_called()
+    assert_no_mutating_call(conn)
+    assert _audit_tools(tmp_path) == ["vm_resize_disk"]
 
 
 @pytest.mark.unit
@@ -334,13 +361,14 @@ def test_vm_resize_disk_real_call_hits_resize_put(monkeypatch):
 
 
 @pytest.mark.unit
-def test_ct_start_dry_run_makes_no_api_call(monkeypatch, undo_recorder):
+def test_ct_start_dry_run_writes_nothing_but_is_audited(monkeypatch, undo_recorder, tmp_path):
     conn = _lxc_conn()
     _wire(monkeypatch, lxc_tools, conn)
     out = lxc_tools.ct_start(vmid=200, dry_run=True, node="pve1")
     assert out["dryRun"] is True and out["wouldStart"]["vmid"] == 200
-    conn.nodes.assert_not_called()
+    assert_no_mutating_call(conn)
     assert undo_recorder == []
+    assert _audit_tools(tmp_path) == ["ct_start"]
 
 
 @pytest.mark.unit
@@ -357,13 +385,14 @@ def test_ct_start_real_call_and_undo_inverse(monkeypatch, undo_recorder):
 
 
 @pytest.mark.unit
-def test_ct_stop_dry_run_makes_no_api_call(monkeypatch, undo_recorder):
+def test_ct_stop_dry_run_writes_nothing_but_is_audited(monkeypatch, undo_recorder, tmp_path):
     conn = _lxc_conn()
     _wire(monkeypatch, lxc_tools, conn)
     out = lxc_tools.ct_stop(vmid=200, dry_run=True, node="pve1")
     assert out["dryRun"] is True and out["wouldStop"]["vmid"] == 200
-    conn.nodes.assert_not_called()
+    assert_no_mutating_call(conn)
     assert undo_recorder == []
+    assert _audit_tools(tmp_path) == ["ct_stop"]
 
 
 @pytest.mark.unit

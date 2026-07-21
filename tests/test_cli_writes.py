@@ -13,6 +13,7 @@ import sqlite3
 from unittest.mock import MagicMock
 
 import pytest
+from conftest import assert_no_mutating_call
 from typer.testing import CliRunner
 
 import proxmox_aiops.governance.audit as audit_mod
@@ -49,7 +50,14 @@ def _mock_vm_conn() -> MagicMock:
 
 
 @pytest.mark.unit
-def test_cli_vm_stop_dry_run_makes_no_call_and_no_audit(gov_home, monkeypatch):
+def test_cli_vm_stop_dry_run_writes_nothing_but_is_audited(gov_home, monkeypatch):
+    """A preview may read; it must never write — and it IS audited.
+
+    The CLI dry-run branch now calls the governed twin with dry_run=True instead
+    of printing a hardcoded string, so the preview runs the same guards the real
+    write would and leaves the same audit trail. The surviving prohibition is
+    narrower than the old 'no call, no audit': no MUTATING verb may be issued.
+    """
     import mcp_server.tools.vm as gov_vm
     from proxmox_aiops.cli import app
 
@@ -58,8 +66,8 @@ def test_cli_vm_stop_dry_run_makes_no_call_and_no_audit(gov_home, monkeypatch):
     result = CliRunner().invoke(app, ["vm", "stop", "100", "--dry-run"])
     assert result.exit_code == 0
     assert "DRY-RUN" in result.output
-    conn.nodes.assert_not_called()
-    assert not (gov_home / "audit.db").exists()
+    assert_no_mutating_call(conn)
+    assert _audit_tools(gov_home / "audit.db") == ["vm_stop"]
 
 
 @pytest.mark.unit

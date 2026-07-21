@@ -68,9 +68,12 @@ do not silently pass.
 - [ ] `proxmox-aiops vm clone <src> --newid <free>` → returns a task UPID;
       `cluster task-status <upid>` reaches `stopped/OK` without re-issuing the clone.
 
-### 5. Governance actually gates
-- [ ] With no `rules.yaml`, a `high`-risk op (e.g. `vm delete --dry-run` then real)
-      is refused unless `PROXMOX_AUDIT_APPROVED_BY` is set (secure-by-default).
+### 5. Governance records, it does not gate
+- [ ] The harness authorizes nothing — there is no read-only, deny-rule, or
+      approver gate to test. A `high`-risk op (e.g. `vm delete --dry-run` then
+      real) runs on the agent's/account's authority and lands an audit row tagged
+      `review`; `PROXMOX_AUDIT_APPROVED_BY`, if set, is recorded as an optional
+      annotation, never as a requirement.
 - [ ] A tight poll loop trips the runaway budget guard rather than hammering the API.
 
 ### 6. Cleanup

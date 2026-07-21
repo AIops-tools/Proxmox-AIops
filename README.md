@@ -5,8 +5,8 @@
 > **Disclaimer**: Community-maintained open-source project. **Not affiliated with, endorsed by, or sponsored by Proxmox Server Solutions GmbH.** "Proxmox" is a trademark of its owner. MIT licensed.
 
 AI-powered Proxmox VE VM and container lifecycle operations with a **built-in
-governance harness** — unified audit log, policy engine, token/runaway budget
-guard, undo-token recording, and graduated-autonomy risk tiers. Self-contained:
+governance harness** — unified audit log, token/runaway budget
+guard, undo-token recording, and descriptive risk-tier labels. Self-contained:
 no external dependencies beyond `proxmoxer` and the MCP SDK. Coverage is not
 yet exhaustive across every Proxmox operation.
 
@@ -23,40 +23,22 @@ yet exhaustive across every Proxmox operation.
 - **Reversibility**: write ops with a clean inverse (start/stop/shutdown/reconfigure/clone/migrate/snapshot-create/move-disk, container start/stop, and restore-into-a-free-vmid) record an inverse undo descriptor; irreversible ops (delete, snapshot-rollback, forced restore) declare none and are tagged `high` risk. Disk resize is grow-only (shrink refused).
 - **Async tasks**: Proxmox writes return a task UPID — poll completion with `cluster task-status` / read lines with `cluster task-log` (the runaway budget guard prevents poll loops from running away).
 
-## Security: read-only mode
+## What this tool does, and does not, decide
 
-This tool is meant to be handed to an AI agent, so its safety story is enforced
-by the server rather than requested in a prompt:
+It delivers Proxmox VE operations — reads and writes — accurately and
+efficiently, and records every one of them. It does **not** decide whether a write is allowed to
+happen. That is the agent's judgement, or the permission of the account you connect it with:
+use a Proxmox VE user or API token granted only read privileges (no VM.*/Datastore.* write roles),
+and the writes fail at the server — the place that actually owns the permission.
 
-```bash
-export PROXMOX_READ_ONLY=1
-```
+So there is no read-only switch, no policy file, no approval gate to configure. The one thing the
+tool guarantees is that nothing is silent: **every call, over MCP and over the CLI alike, lands an
+audit row** in `~/.proxmox-aiops/audit.db`, and destructive writes still capture their before-state
+and record an inverse where one exists.
 
-With that set, the **18 write tools are never registered**. An MCP client
-lists **25 tools instead of 43** — the writes are not hidden, not
-gated behind a flag, and not merely refused when called. They are absent from
-the session. A model cannot invoke a tool it was never offered, and cannot be
-argued into one.
-
-That distinction is the whole point. A tool that exists but refuses still invites
-retry loops and "I'll describe the call instead" behaviour from smaller models,
-and it leaves a reviewer trusting a promise. An absent tool is a fact you can
-check: connect, list the tools, and see that the writes are not there.
-
-Enforcement is two layers deep, so the switch cannot be sidestepped by changing
-entry point:
-
-| Layer | What it does | Covers |
-|---|---|---|
-| `@governed_tool` harness | refuses every non-read operation outright | MCP, CLI, and in-process callers |
-| MCP registration | write tools are removed from `list_tools()` | anything speaking MCP |
-
-Read operations are unaffected, and every call is still audited to
-`~/.proxmox-aiops/audit.db`.
-
-> The read/write split is derived from each tool's declared `risk_level`, and a
-> test asserts that this never disagrees with the `[READ]`/`[WRITE]` tag in the
-> tool's own documentation — so a write can't quietly present itself as a read.
+> Each tool declares a `risk_level`, carried into the audit row as a descriptive tier
+> (none/confirm/review) — so a reviewer can see at a glance that a row was a high-risk delete. It
+> is a label, not a gate.
 
 Running a smaller / local model? See
 [agent-guardrails.md](skills/proxmox-aiops/references/agent-guardrails.md) — it lists
@@ -91,8 +73,8 @@ targets:
 
 All operations are logged to a local SQLite audit DB under `~/.proxmox-aiops/`
 (relocatable via `PROXMOX_AIOPS_HOME`). Every write tool passes through the
-governance harness: policy pre-check, token/runaway budget guard, graduated
-risk-tier gate, and audit logging. Destructive CLI commands (`vm stop`,
+governance harness: token/runaway budget guard, risk-tier tagging, and audit
+logging. Destructive CLI commands (`vm stop`,
 `vm delete`, `vm snapshot-delete`, `vm snapshot-rollback`, `ct stop`) require
 double confirmation and support `--dry-run` (notably `backup restore`, which is
 `high` risk). API-returned text is run through a prompt-injection sanitizer.

@@ -71,6 +71,11 @@ def backup_restore(
 ) -> None:
     """Restore a VM from a backup (HIGH RISK — double confirm)."""
     if dry_run:
+        # NOT routed through the governed twin: gov.backup_restore takes no
+        # dry_run parameter, so calling it would perform the restore this branch
+        # exists to avoid. This preview is therefore unguarded and unaudited —
+        # notable here because backup_restore is the repo's only high-risk write
+        # whose CLI preview still cannot see its own guards.
         dry_run_print(operation="restore_backup", api_call=f"qemu.post(vmid={vmid})",
                       parameters={"archive": archive, "storage": storage, "force": force})
         return

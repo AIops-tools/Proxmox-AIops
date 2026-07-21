@@ -14,6 +14,7 @@ from proxmox_aiops.cli._common import (
     TargetOption,
     cli_errors,
     double_confirm,
+    dry_run_preview,
     dry_run_print,
     get_connection,
 )
@@ -69,7 +70,9 @@ def vm_stop(
 ) -> None:
     """Hard-stop a VM (destructive — double confirm)."""
     if dry_run:
-        dry_run_print(operation="stop_vm", api_call=f"qemu({vmid}).status.stop.post()")
+        dry_run_preview(
+            gov.vm_stop(vmid=vmid, dry_run=True, target=target, node=node),
+            operation="stop_vm", api_call=f"qemu({vmid}).status.stop.post()")
         return
     double_confirm("stop", f"VM {vmid}")
     result = gov.vm_stop(vmid=vmid, target=target, node=node)
@@ -100,7 +103,8 @@ def vm_snapshot_delete(
 ) -> None:
     """Delete a named snapshot (destructive — double confirm)."""
     if dry_run:
-        dry_run_print(
+        dry_run_preview(
+            gov.vm_snapshot_delete(vmid=vmid, name=name, dry_run=True, target=target, node=node),
             operation="snapshot_delete",
             api_call=f"qemu({vmid}).snapshot({name!r}).delete()",
         )
@@ -141,7 +145,9 @@ def vm_shutdown(
 ) -> None:
     """Graceful shutdown (vs hard stop)."""
     if dry_run:
-        dry_run_print(operation="shutdown_vm", api_call=f"qemu({vmid}).status.shutdown.post()")
+        dry_run_preview(
+            gov.vm_shutdown(vmid=vmid, dry_run=True, target=target, node=node),
+            operation="shutdown_vm", api_call=f"qemu({vmid}).status.shutdown.post()")
         return
     result = gov.vm_shutdown(vmid=vmid, target=target, node=node)
     console.print(f"[green]Shutdown requested for VM {vmid}[/] (task: {result['task']})")
@@ -167,6 +173,10 @@ def vm_reconfigure(
 ) -> None:
     """Change a VM's cores and/or memory."""
     if dry_run:
+        # NOT routed through the governed twin: vm_reconfigure takes no dry_run
+        # parameter, so calling it would perform the write this branch exists to
+        # avoid. Adding that parameter to the twin is the fix; until then this
+        # preview is unguarded and unaudited. See vm_move_disk for the same case.
         dry_run_print(operation="reconfigure_vm", api_call=f"qemu({vmid}).config.post()",
                       parameters={"cores": cores, "memory": memory})
         return
@@ -199,7 +209,9 @@ def vm_delete(
 ) -> None:
     """Destroy a VM permanently (destructive — double confirm)."""
     if dry_run:
-        dry_run_print(operation="delete_vm", api_call=f"qemu({vmid}).delete()")
+        dry_run_preview(
+            gov.vm_delete(vmid=vmid, dry_run=True, target=target, node=node),
+            operation="delete_vm", api_call=f"qemu({vmid}).delete()")
         return
     double_confirm("permanently destroy", f"VM {vmid}")
     result = gov.vm_delete(vmid=vmid, target=target, node=node)
@@ -218,8 +230,11 @@ def vm_migrate(
 ) -> None:
     """Migrate a VM to another node (async — poll with 'cluster task-status')."""
     if dry_run:
-        dry_run_print(operation="migrate_vm", api_call=f"qemu({vmid}).migrate.post()",
-                      parameters={"target": to_node, "online": not offline})
+        dry_run_preview(
+            gov.vm_migrate(vmid=vmid, target_node=to_node, online=not offline,
+                           dry_run=True, target=target, node=node),
+            operation="migrate_vm", api_call=f"qemu({vmid}).migrate.post()",
+            parameters={"target": to_node, "online": not offline})
         return
     result = gov.vm_migrate(
         vmid=vmid, target_node=to_node, online=not offline, target=target, node=node
@@ -238,8 +253,11 @@ def vm_snapshot_rollback(
 ) -> None:
     """Roll a VM back to a snapshot (destructive — double confirm)."""
     if dry_run:
-        dry_run_print(operation="rollback_snapshot",
-                      api_call=f"qemu({vmid}).snapshot({name!r}).rollback.post()")
+        dry_run_preview(
+            gov.vm_snapshot_rollback(vmid=vmid, name=name, dry_run=True,
+                                     target=target, node=node),
+            operation="rollback_snapshot",
+            api_call=f"qemu({vmid}).snapshot({name!r}).rollback.post()")
         return
     double_confirm("roll back (discards newer changes)", f"VM {vmid} → snapshot {name}")
     result = gov.vm_snapshot_rollback(vmid=vmid, name=name, target=target, node=node)
@@ -258,8 +276,11 @@ def vm_resize_disk(
 ) -> None:
     """Grow a VM disk (grow-only — shrink is refused)."""
     if dry_run:
-        dry_run_print(operation="resize_disk", api_call=f"qemu({vmid}).resize.put()",
-                      parameters={"disk": disk, "size": size})
+        dry_run_preview(
+            gov_disk.vm_resize_disk(vmid=vmid, disk=disk, size=size, dry_run=True,
+                                    target=target, node=node),
+            operation="resize_disk", api_call=f"qemu({vmid}).resize.put()",
+            parameters={"disk": disk, "size": size})
         return
     gov_disk.vm_resize_disk(vmid=vmid, disk=disk, size=size, target=target, node=node)
     console.print(f"[green]Resized {disk} on VM {vmid}[/] to {size}")
@@ -278,6 +299,8 @@ def vm_move_disk(
 ) -> None:
     """Move a VM disk to another storage (async — poll with 'cluster task-status')."""
     if dry_run:
+        # NOT routed: gov_disk.vm_move_disk takes no dry_run parameter (see the
+        # note on vm_reconfigure). Unguarded, unaudited preview until it does.
         dry_run_print(operation="move_disk", api_call=f"qemu({vmid}).move_disk.post()",
                       parameters={"disk": disk, "storage": storage, "delete": delete})
         return

@@ -8,14 +8,28 @@ translated to one red line + exit code 1 (the ``cli_errors`` wrapper).
 
 from __future__ import annotations
 
+import sqlite3
 from unittest.mock import MagicMock
 
 import pytest
+from conftest import assert_no_mutating_call
 from typer.testing import CliRunner
 
 from proxmox_aiops.cli import app
 
 runner = CliRunner()
+
+
+def _audit_tools(home) -> list[str]:
+    """Tool names recorded in the audit log under ``home`` (empty if none)."""
+    db = home / "audit.db"
+    if not db.exists():
+        return []
+    conn = sqlite3.connect(db)
+    try:
+        return [r[0] for r in conn.execute("SELECT tool FROM audit_log ORDER BY id")]
+    finally:
+        conn.close()
 
 
 def _patch_conn(monkeypatch, module_path: str, conn: MagicMock) -> None:
@@ -273,7 +287,11 @@ def test_cli_backup_list(monkeypatch):
 
 
 @pytest.mark.unit
-def test_cli_backup_restore_dry_run_no_execute(monkeypatch):
+def test_cli_backup_restore_dry_run_no_execute(monkeypatch, tmp_path):
+    """backup_restore's twin takes no dry_run parameter, so this preview is NOT
+    routed through governance: it mutates nothing, but it also cannot see the
+    guards the real restore would hit, and leaves no audit row. The audit
+    assertion pins the gap so it is noticed if the twin ever gains dry_run."""
     conn = MagicMock()
     _patch_conn(monkeypatch, "proxmox_aiops.cli.backup", conn)
     result = runner.invoke(
@@ -283,4 +301,21 @@ def test_cli_backup_restore_dry_run_no_execute(monkeypatch):
     )
     assert result.exit_code == 0, result.output
     assert "DRY-RUN" in result.output
-    conn.nodes.assert_not_called()
+    assert_no_mutating_call(conn)
+    assert not (tmp_path / "audit.db").exists()
+
+
+@pytest.mark.unit
+def test_cli_ct_stop_dry_run_writes_nothing_but_is_audited(monkeypatch, tmp_path):
+    """The rerouted container preview: governed, audited, mutates nothing."""
+    import mcp_server.tools.lxc as lxc_tools
+
+    conn = MagicMock()
+    conn.nodes.return_value.lxc.get.return_value = [{"vmid": 200, "name": "ct"}]
+    _patch_conn(monkeypatch, "proxmox_aiops.cli.lxc", conn)
+    monkeypatch.setattr(lxc_tools, "_get_connection", lambda target=None: conn)
+    result = runner.invoke(app, ["ct", "stop", "200", "--dry-run"])
+    assert result.exit_code == 0, result.output
+    assert "DRY-RUN" in result.output
+    assert_no_mutating_call(conn)
+    assert _audit_tools(tmp_path) == ["ct_stop"]

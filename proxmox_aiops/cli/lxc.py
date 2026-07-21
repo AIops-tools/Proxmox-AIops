@@ -13,7 +13,7 @@ from proxmox_aiops.cli._common import (
     TargetOption,
     cli_errors,
     double_confirm,
-    dry_run_print,
+    dry_run_preview,
     get_connection,
 )
 from proxmox_aiops.ops import lxc
@@ -54,7 +54,9 @@ def ct_stop(
 ) -> None:
     """Stop an LXC container (destructive — double confirm)."""
     if dry_run:
-        dry_run_print(operation="stop_ct", api_call=f"lxc({vmid}).status.stop.post()")
+        dry_run_preview(
+            gov.ct_stop(vmid=vmid, dry_run=True, target=target, node=node),
+            operation="stop_ct", api_call=f"lxc({vmid}).status.stop.post()")
         return
     double_confirm("stop", f"container {vmid}")
     result = gov.ct_stop(vmid=vmid, target=target, node=node)
