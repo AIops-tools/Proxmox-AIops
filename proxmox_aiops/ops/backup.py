@@ -142,3 +142,41 @@ def restore_backup(
         "action": "backup_restore",
         "task": sanitize(str(upid), 256),
     }
+
+
+def preview_restore(
+    conn: Any,
+    vmid: int,
+    archive: str,
+    storage: str,
+    node: str | None = None,
+    force: bool = False,
+) -> dict:
+    """[READ] Guarded dry-run preview for restore_backup — reads only, changes nothing.
+
+    Runs the SAME existing-VM guard as the real restore: it reads whether
+    ``vmid`` already exists on the target node, and if it does and ``force`` is
+    False it refuses here too (the identical error), so a preview that would be
+    refused says so instead of showing a green "would restore" banner. Reports
+    whether the restore would OVERWRITE an existing VM or CREATE a new one.
+    """
+    resolved = node or get_default_node(conn)
+    if not resolved:
+        raise NodeRequiredError(
+            "No node specified and no default node configured. Pass node=<name>."
+        )
+    existed_before = _guest_exists(conn, resolved, vmid)
+    if existed_before and not force:
+        raise ValueError(
+            f"VM {vmid} already exists on {resolved}. Pass force=True to overwrite "
+            f"(this destroys the current VM) or choose a free vmid (see next_vmid)."
+        )
+    return {
+        "vmid": int(vmid),
+        "node": resolved,
+        "archive": sanitize(archive, 256),
+        "storage": sanitize(storage, 64),
+        "existed_before": existed_before,
+        "wouldOverwrite": existed_before,
+        "action": "backup_restore",
+    }

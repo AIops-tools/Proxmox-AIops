@@ -287,22 +287,52 @@ def test_cli_backup_list(monkeypatch):
 
 
 @pytest.mark.unit
-def test_cli_backup_restore_dry_run_no_execute(monkeypatch, tmp_path):
-    """backup_restore's twin takes no dry_run parameter, so this preview is NOT
-    routed through governance: it mutates nothing, but it also cannot see the
-    guards the real restore would hit, and leaves no audit row. The audit
-    assertion pins the gap so it is noticed if the twin ever gains dry_run."""
+def test_cli_backup_restore_dry_run_reads_and_audits_but_never_restores(monkeypatch, tmp_path):
+    """`backup restore --dry-run` now routes through the governed twin (was a
+    hardcoded, unaudited banner): the preview READS whether the target vmid
+    exists (to run the same existing-VM guard), audits, and issues no restore."""
+    import mcp_server.tools.backup as backup_tools
+
     conn = MagicMock()
+    conn.nodes.return_value.qemu.get.return_value = []  # vmid 101 absent → would create
+    conn.nodes.return_value.lxc.get.return_value = []
     _patch_conn(monkeypatch, "proxmox_aiops.cli.backup", conn)
+    monkeypatch.setattr(backup_tools, "_get_connection", lambda target=None: conn)
     result = runner.invoke(
         app,
         ["backup", "restore", "101", "--archive", "s:backup/a.zst",
-         "--storage", "local", "--dry-run"],
+         "--storage", "local", "--node", "pve1", "--dry-run"],
     )
     assert result.exit_code == 0, result.output
     assert "DRY-RUN" in result.output
+    conn.nodes.return_value.qemu.get.assert_called()  # it DID read, to run the guard
     assert_no_mutating_call(conn)
-    assert not (tmp_path / "audit.db").exists()
+    assert _audit_tools(tmp_path) == ["backup_restore"]
+
+
+@pytest.mark.unit
+def test_cli_backup_restore_dry_run_refuses_overwrite_without_force_nonzero(
+    monkeypatch, tmp_path
+):
+    """The point of routing the preview through the twin: previewing a restore
+    that would OVERWRITE an existing VM without --force refuses (exit non-zero),
+    exactly as the real restore would, instead of a green banner."""
+    import mcp_server.tools.backup as backup_tools
+
+    conn = MagicMock()
+    conn.nodes.return_value.qemu.get.return_value = [{"vmid": 101}]  # already exists
+    conn.nodes.return_value.lxc.get.return_value = []
+    _patch_conn(monkeypatch, "proxmox_aiops.cli.backup", conn)
+    monkeypatch.setattr(backup_tools, "_get_connection", lambda target=None: conn)
+    result = runner.invoke(
+        app,
+        ["backup", "restore", "101", "--archive", "s:backup/a.zst",
+         "--storage", "local", "--node", "pve1", "--dry-run"],
+    )
+    assert result.exit_code == 1
+    assert "DRY-RUN" not in result.output
+    assert "already exists" in result.output
+    assert_no_mutating_call(conn)
 
 
 @pytest.mark.unit

@@ -277,24 +277,33 @@ def vm_reconfigure(
     vmid: int,
     cores: Optional[int] = None,
     memory: Optional[int] = None,
+    dry_run: bool = False,
     target: Optional[str] = None,
     node: Optional[str] = None,
 ) -> dict:
     """[WRITE] Change a VM's cores and/or memory (MiB). Inverse: restore prior values.
 
     Provide at least one of cores / memory. The previous values are captured so
-    the harness records a reverse reconfigure as the undo token.
+    the harness records a reverse reconfigure as the undo token. Pass
+    dry_run=True to read the current cores/memory and preview the change.
 
     Args:
         vmid: Numeric Proxmox VM id.
         cores: New vCPU core count (omit to leave unchanged).
         memory: New memory in MiB (omit to leave unchanged).
+        dry_run: If True, preview what would change without applying it.
         target: Proxmox target name from config.
         node: Node name; omit to auto-locate the VM.
     """
-    return vl.reconfigure_vm(
-        _get_connection(target), vmid, cores=cores, memory=memory, node=node
-    )
+    conn = _get_connection(target)
+    if dry_run:
+        return {
+            "dryRun": True,
+            "wouldReconfigure": vl.preview_reconfigure(
+                conn, vmid, cores=cores, memory=memory, node=node
+            ),
+        }
+    return vl.reconfigure_vm(conn, vmid, cores=cores, memory=memory, node=node)
 
 
 @mcp.tool()

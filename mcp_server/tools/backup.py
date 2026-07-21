@@ -75,6 +75,7 @@ def backup_restore(
     archive: str,
     storage: str,
     force: bool = False,
+    dry_run: bool = False,
     target: Optional[str] = None,
     node: Optional[str] = None,
 ) -> dict:
@@ -82,16 +83,25 @@ def backup_restore(
 
     With force=True this OVERWRITES an existing VM (destructive, no undo).
     Restoring into a free vmid records a delete as the safe inverse. Confirm
-    with the user before calling.
+    with the user before calling. Pass dry_run=True to preview: it runs the same
+    existing-VM guard (a preview that would be refused for overwriting without
+    force refuses too) and reports whether it would overwrite or create.
 
     Args:
         vmid: Target VM id to restore into.
         archive: Backup volume id / archive path (see backup_list).
         storage: Storage to place the restored disks on.
         force: Overwrite vmid if it already exists (destructive).
+        dry_run: If True, preview (runs the existing-VM guard) without restoring.
         target: Proxmox target name from config.
         node: Node name; omit to use the configured default node.
     """
-    return bk.restore_backup(
-        _get_connection(target), vmid, archive, storage, node=node, force=force
-    )
+    conn = _get_connection(target)
+    if dry_run:
+        return {
+            "dryRun": True,
+            "wouldRestore": bk.preview_restore(
+                conn, vmid, archive, storage, node=node, force=force
+            ),
+        }
+    return bk.restore_backup(conn, vmid, archive, storage, node=node, force=force)

@@ -65,21 +65,30 @@ def vm_move_disk(
     disk: str,
     storage: str,
     delete: bool = False,
+    dry_run: bool = False,
     target: Optional[str] = None,
     node: Optional[str] = None,
 ) -> dict:
     """[WRITE] Move a VM disk to another storage. Returns task UPID. Async.
 
     Records a reverse move as the undo token when the source storage is known.
+    Pass dry_run=True to read the disk's current placement and preview the move.
 
     Args:
         vmid: Numeric Proxmox VM id.
         disk: Disk key, e.g. 'scsi0'.
         storage: Destination storage id.
         delete: Remove the source copy after the move completes.
+        dry_run: If True, preview the from→to move without moving anything.
         target: Proxmox target name from config.
         node: Node name; omit to auto-locate the VM.
     """
-    return dk.move_disk(
-        _get_connection(target), vmid, disk, storage, node=node, delete=delete
-    )
+    conn = _get_connection(target)
+    if dry_run:
+        return {
+            "dryRun": True,
+            "wouldMoveDisk": dk.preview_move_disk(
+                conn, vmid, disk, storage, node=node, delete=delete
+            ),
+        }
+    return dk.move_disk(conn, vmid, disk, storage, node=node, delete=delete)

@@ -148,21 +148,29 @@ def _patch_governed_conn(monkeypatch, conn: MagicMock) -> None:
         (["vm", "migrate", "100", "--to-node", "pve2", "--dry-run"], "vm_migrate"),
         (["vm", "resize-disk", "100", "--disk", "scsi0", "--size", "+10G", "--dry-run"],
          "vm_resize_disk"),
-        # Twins without a dry_run parameter: the CLI cannot preview through them
-        # without performing the write, so these two previews are still the old
-        # hardcoded banner — unguarded and unaudited. They are listed here so the
-        # gap is visible and shrinks when the twins gain the parameter.
-        (["vm", "reconfigure", "100", "--cores", "4", "--dry-run"], None),
-        (["vm", "move-disk", "100", "--disk", "scsi0", "--storage", "ceph", "--dry-run"], None),
+        # reconfigure / move-disk now route through the governed twin too: their
+        # previews READ the VM's current config (cores/memory, disk placement)
+        # through the guarded path and are audited like the rest — no longer the
+        # old hardcoded, unaudited banner.
+        (["vm", "reconfigure", "100", "--cores", "4", "--dry-run"], "vm_reconfigure"),
+        (["vm", "move-disk", "100", "--disk", "scsi0", "--storage", "ceph", "--dry-run"],
+         "vm_move_disk"),
     ],
 )
 def test_vm_write_dry_run_previews(monkeypatch, tmp_path, argv, audited_as):
-    """A preview renders, mutates nothing, and — when routed — is audited."""
+    """A preview renders, mutates nothing, and — being routed — is audited."""
     conn = MagicMock()
+    # Enough shape for the read-backed previews (reconfigure / move-disk) to
+    # locate the VM and read its config; harmless for the previews that do not.
+    conn.nodes.get.return_value = [{"node": "pve1"}]
+    conn.nodes.return_value.qemu.get.return_value = [{"vmid": 100, "name": "web"}]
+    conn.nodes.return_value.qemu.return_value.config.get.return_value = {
+        "cores": 2, "memory": 2048, "scsi0": "local:vm-100-disk-0,size=32G",
+    }
     _patch_conn(monkeypatch, conn)
     _patch_governed_conn(monkeypatch, conn)
     result = runner.invoke(app, argv)
     assert result.exit_code == 0, result.output
     assert "DRY-RUN" in result.output
     assert_no_mutating_call(conn)
-    assert _audit_tools(tmp_path) == ([audited_as] if audited_as else [])
+    assert _audit_tools(tmp_path) == [audited_as]

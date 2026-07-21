@@ -15,7 +15,6 @@ from proxmox_aiops.cli._common import (
     cli_errors,
     double_confirm,
     dry_run_preview,
-    dry_run_print,
     get_connection,
 )
 from proxmox_aiops.ops import agent as ag
@@ -173,12 +172,14 @@ def vm_reconfigure(
 ) -> None:
     """Change a VM's cores and/or memory."""
     if dry_run:
-        # NOT routed through the governed twin: vm_reconfigure takes no dry_run
-        # parameter, so calling it would perform the write this branch exists to
-        # avoid. Adding that parameter to the twin is the fix; until then this
-        # preview is unguarded and unaudited. See vm_move_disk for the same case.
-        dry_run_print(operation="reconfigure_vm", api_call=f"qemu({vmid}).config.post()",
-                      parameters={"cores": cores, "memory": memory})
+        # Routed through the governed twin so the preview reads the VM's current
+        # cores/memory through the same guarded path and lands the same audit
+        # row as the real reconfigure.
+        dry_run_preview(
+            gov.vm_reconfigure(vmid=vmid, cores=cores, memory=memory, dry_run=True,
+                               target=target, node=node),
+            operation="reconfigure_vm", api_call=f"qemu({vmid}).config.post()",
+            parameters={"cores": cores, "memory": memory})
         return
     result = gov.vm_reconfigure(
         vmid=vmid, cores=cores, memory=memory, target=target, node=node
@@ -299,10 +300,14 @@ def vm_move_disk(
 ) -> None:
     """Move a VM disk to another storage (async — poll with 'cluster task-status')."""
     if dry_run:
-        # NOT routed: gov_disk.vm_move_disk takes no dry_run parameter (see the
-        # note on vm_reconfigure). Unguarded, unaudited preview until it does.
-        dry_run_print(operation="move_disk", api_call=f"qemu({vmid}).move_disk.post()",
-                      parameters={"disk": disk, "storage": storage, "delete": delete})
+        # Routed through the governed twin so the preview reads the disk's
+        # current placement through the same guarded path and lands the same
+        # audit row as the real move.
+        dry_run_preview(
+            gov_disk.vm_move_disk(vmid=vmid, disk=disk, storage=storage, delete=delete,
+                                  dry_run=True, target=target, node=node),
+            operation="move_disk", api_call=f"qemu({vmid}).move_disk.post()",
+            parameters={"disk": disk, "storage": storage, "delete": delete})
         return
     result = gov_disk.vm_move_disk(
         vmid=vmid, disk=disk, storage=storage, delete=delete, target=target, node=node

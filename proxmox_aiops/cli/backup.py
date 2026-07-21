@@ -13,7 +13,7 @@ from proxmox_aiops.cli._common import (
     TargetOption,
     cli_errors,
     double_confirm,
-    dry_run_print,
+    dry_run_preview,
     get_connection,
 )
 from proxmox_aiops.ops import backup as bk
@@ -71,13 +71,15 @@ def backup_restore(
 ) -> None:
     """Restore a VM from a backup (HIGH RISK — double confirm)."""
     if dry_run:
-        # NOT routed through the governed twin: gov.backup_restore takes no
-        # dry_run parameter, so calling it would perform the restore this branch
-        # exists to avoid. This preview is therefore unguarded and unaudited —
-        # notable here because backup_restore is the repo's only high-risk write
-        # whose CLI preview still cannot see its own guards.
-        dry_run_print(operation="restore_backup", api_call=f"qemu.post(vmid={vmid})",
-                      parameters={"archive": archive, "storage": storage, "force": force})
+        # Routed through the governed twin so the preview runs the SAME
+        # existing-VM guard the real restore does — a preview that would
+        # overwrite an existing VM without --force refuses (exit non-zero)
+        # instead of a green banner — and lands the same audit row.
+        dry_run_preview(
+            gov.backup_restore(vmid=vmid, archive=archive, storage=storage,
+                               force=force, dry_run=True, target=target, node=node),
+            operation="restore_backup", api_call=f"qemu.post(vmid={vmid})",
+            parameters={"archive": archive, "storage": storage, "force": force})
         return
     double_confirm("restore (may overwrite)", f"VM {vmid} from {archive}")
     result = gov.backup_restore(

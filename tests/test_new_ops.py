@@ -70,6 +70,28 @@ def test_backup_restore_new_vmid_records_existed_before_false():
     assert result["task"] == "UPID:pve1:restore"
 
 
+@pytest.mark.unit
+def test_preview_restore_refuses_overwrite_without_force_and_never_posts():
+    conn = MagicMock(name="conn")
+    conn.nodes.return_value.qemu.get.return_value = [{"vmid": 100}]
+    conn.nodes.return_value.lxc.get.return_value = []
+    with pytest.raises(ValueError, match="already exists"):
+        bk.preview_restore(conn, 100, "store:backup/a.zst", "local", node="pve1")
+    conn.nodes.return_value.qemu.post.assert_not_called()
+
+
+@pytest.mark.unit
+def test_preview_restore_new_vmid_reports_would_create_without_posting():
+    conn = MagicMock(name="conn")
+    conn.nodes.return_value.qemu.get.return_value = []  # vmid absent
+    conn.nodes.return_value.lxc.get.return_value = []
+    result = bk.preview_restore(conn, 101, "store:backup/a.zst", "local", node="pve1")
+    assert result["existed_before"] is False
+    assert result["wouldOverwrite"] is False
+    assert "task" not in result
+    conn.nodes.return_value.qemu.post.assert_not_called()
+
+
 # ─── disk ──────────────────────────────────────────────────────────────────
 
 
@@ -110,6 +132,42 @@ def test_move_disk_captures_source_storage():
     out = dk.move_disk(conn, 100, "scsi0", "ceph", node="pve1")
     assert out["from_storage"] == "local-lvm"
     assert out["to_storage"] == "ceph"
+
+
+@pytest.mark.unit
+def test_preview_move_disk_reads_source_without_posting():
+    conn = _conn_with_qemu()
+    conn.nodes.return_value.qemu.return_value.config.get.return_value = {
+        "scsi0": "local-lvm:vm-100-disk-0,size=32G",
+    }
+    out = dk.preview_move_disk(conn, 100, "scsi0", "ceph", node="pve1")
+    assert out["from_storage"] == "local-lvm"
+    assert out["to_storage"] == "ceph"
+    assert "task" not in out
+    conn.nodes.return_value.qemu.return_value.move_disk.post.assert_not_called()
+
+
+@pytest.mark.unit
+def test_preview_reconfigure_reads_current_without_posting():
+    from proxmox_aiops.ops import vm_lifecycle as vl
+
+    conn = _conn_with_qemu()
+    conn.nodes.return_value.qemu.return_value.config.get.return_value = {
+        "cores": 2, "memory": 2048,
+    }
+    out = vl.preview_reconfigure(conn, 100, cores=4, node="pve1")
+    assert out["wouldApply"] == {"cores": 4}
+    assert out["previous"] == {"cores": 2, "memory": 2048}
+    conn.nodes.return_value.qemu.return_value.config.post.assert_not_called()
+
+
+@pytest.mark.unit
+def test_preview_reconfigure_needs_at_least_one_field():
+    from proxmox_aiops.ops import vm_lifecycle as vl
+
+    conn = _conn_with_qemu()
+    with pytest.raises(ValueError, match="at least one of cores / memory"):
+        vl.preview_reconfigure(conn, 100, node="pve1")
 
 
 # ─── cluster read-views ──────────────────────────────────────────────────────

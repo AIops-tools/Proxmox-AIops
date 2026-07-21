@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.8.0 — 2026-07-21
+
+### Changed
+- CLI `--dry-run` previews for the remaining write commands now route through the governed twin (run the guards, land an audit row) instead of a static unaudited banner.
+
+See RELEASE_NOTES.md for detail.
+
+
 ## v0.7.0 — 2026-07-21
 
 ### Changed (BREAKING)

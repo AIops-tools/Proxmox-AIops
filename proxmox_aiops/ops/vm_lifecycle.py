@@ -198,6 +198,37 @@ def reconfigure_vm(
     }
 
 
+def preview_reconfigure(
+    conn: Any,
+    vmid: int,
+    cores: int | None = None,
+    memory: int | None = None,
+    node: str | None = None,
+) -> dict:
+    """[READ] Preview reconfigure_vm — reads the current cores/memory, changes nothing.
+
+    Runs the same 'at least one of cores/memory' validation and reads the same
+    config the real call captures as ``previous``, reporting what WOULD change
+    without issuing the config POST.
+    """
+    if cores is None and memory is None:
+        raise ValueError("reconfigure_vm needs at least one of cores / memory.")
+    host_node = _find_node_for_vmid(conn, vmid, node)
+    prev = conn.nodes(host_node).qemu(vmid).config.get()
+    changes: dict[str, Any] = {}
+    if cores is not None:
+        changes["cores"] = int(cores)
+    if memory is not None:
+        changes["memory"] = int(memory)
+    return {
+        "vmid": int(vmid),
+        "node": host_node,
+        "action": "reconfigure",
+        "wouldApply": changes,
+        "previous": {"cores": prev.get("cores"), "memory": prev.get("memory")},
+    }
+
+
 def clone_vm(
     conn: Any,
     vmid: int,

@@ -94,9 +94,7 @@ def move_disk(
     storage is captured so a reverse move can be recorded as the undo token.
     """
     host_node = _find_node_for_vmid(conn, vmid, node)
-    cfg = conn.nodes(host_node).qemu(vmid).config.get()
-    spec = cfg.get(disk, "")
-    source_storage = spec.split(":", 1)[0] if isinstance(spec, str) and ":" in spec else ""
+    source_storage = _disk_source_storage(conn, host_node, vmid, disk)
     upid = conn.nodes(host_node).qemu(vmid).move_disk.post(
         disk=disk, storage=storage, delete=1 if delete else 0
     )
@@ -108,4 +106,37 @@ def move_disk(
         "from_storage": sanitize(source_storage, 64),
         "action": "vm_move_disk",
         "task": sanitize(str(upid), 256),
+    }
+
+
+def _disk_source_storage(conn: Any, node: str, vmid: int, disk: str) -> str:
+    """Read the storage id a ``disk`` currently lives on, from the VM config."""
+    cfg = conn.nodes(node).qemu(vmid).config.get()
+    spec = cfg.get(disk, "")
+    return spec.split(":", 1)[0] if isinstance(spec, str) and ":" in spec else ""
+
+
+def preview_move_disk(
+    conn: Any,
+    vmid: int,
+    disk: str,
+    storage: str,
+    node: str | None = None,
+    delete: bool = False,
+) -> dict:
+    """[READ] Preview move_disk — reads the disk's current placement, changes nothing.
+
+    Reads the same VM config the real move inspects to learn the source storage,
+    and reports the from→to move that WOULD run without issuing the POST.
+    """
+    host_node = _find_node_for_vmid(conn, vmid, node)
+    source_storage = _disk_source_storage(conn, host_node, vmid, disk)
+    return {
+        "vmid": int(vmid),
+        "node": host_node,
+        "disk": sanitize(disk, 32),
+        "from_storage": sanitize(source_storage, 64),
+        "to_storage": sanitize(storage, 64),
+        "delete": delete,
+        "action": "vm_move_disk",
     }
