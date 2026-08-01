@@ -1,16 +1,36 @@
-# Live verification — dropping the `preview` label
+# Live verification — proxmox-aiops
 
-`proxmox-aiops` ships marked **(preview)**. Preview does **not** mean unreleased —
-the package is on PyPI, the MCP Registry, and ClawHub. It means one specific
-thing:
+## ✅ Live-verified against real Proxmox VE 8.4.19 (2026-08-01)
 
-> The code is exercised by a mock-only test suite (`uv run pytest`, no real
-> Proxmox). It has **not** yet been validated end-to-end against a live Proxmox VE
-> cluster. Until it has, we do not claim it works against a real API.
+Verified end-to-end against a real Proxmox VE 8.4.19 node (`pve1`, installed on
+Debian 12 in a nested-KVM lab), driven through the real governed CLI + API-token
+path. **No bugs found — the tool works correctly against a real Proxmox API.**
 
-This document defines exactly what a live verification run must cover, and the
-criteria for removing the `preview` label. It is deliberately checklist-shaped so
-the result is reproducible and auditable — not a subjective "seems fine".
+- **doctor** connected via an `root@pam!aiops` API token over the real
+  `/api2/json` HTTPS endpoint (8006).
+- **Reads matched ground truth exactly** (cross-checked with `pct list` /
+  `pvesh` / `pvesm status`): `ct list` (ct100 running, 256 MB, node pve1),
+  `cluster nodes` (pve1 online, 2 cpu, mem/maxmem), `storage list` (local dir).
+- **Full write → audit → undo → verified restore** on a real container:
+  `ct stop 100` → server reports `stopped`, audit row `ct_stop|ok` → `undo apply`
+  → `ct_start`, `effectVerified: true`, server reports `running`. Both the CLI
+  write and the undo landed audit rows in the same `audit.db` (unbypassable-audit
+  claim holds).
+- **Bug class #11 (undeclared `requests` transport dep) confirmed FIXED**: a clean
+  `uv sync` + proxmoxer https connect succeeded, i.e. `requests` is present.
+
+Not covered by this run: multi-node cluster/quorum, HA, live VM (KVM guest) boot,
+backup jobs, and the firewall/pool/storage *write* paths — the node was a
+single-node nested lab with one LXC container. The checklist below still stands
+for those.
+
+> **Lab recipe (for re-runs):** Debian 12 cloud image → `virt-customize`
+> (root pw + ssh key + `systemctl mask cloud-init` + networkd DHCP) →
+> `apt install proxmox-ve` on top → **disable IPv6 on the VM** before
+> `pvecm updatecerts` (Proxmox puts the interface's `fe80::…%enp1s0` link-local in
+> the cert SAN, which openssl rejects → `pve-ssl.pem` never generates → pveproxy
+> hangs every 8006 request with `http=000`). Reach it from a workstation via an
+> SSH port-forward of 8006 through the KVM host.
 
 ## What preview already guarantees (mock baseline)
 
