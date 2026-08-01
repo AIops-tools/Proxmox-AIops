@@ -1,13 +1,15 @@
-"""Shared MCP server primitives: the FastMCP instance, connection helper,
+"""Shared MCP server primitives: the MCPServer instance, connection helper,
 error sanitisation, and the ``@tool_errors`` decorator.
 
 Tool modules under ``mcp_server/tools/`` import ``mcp`` from here and register
 their ``@mcp.tool()`` functions onto it. ``mcp_server/server.py`` then imports
 those modules and runs the server.
 
-Keep ``Optional[X]`` (never PEP 604 ``X | None``) in any FastMCP-reflected
-tool signature — on older mcp/pydantic the union eval'd to ``types.UnionType``
-crashes FastMCP's ``issubclass`` check (踩坑 #33).
+Keep ``Optional[X]`` (never PEP 604 ``X | None``) in any reflected tool
+signature. mcp>=2.0 accepts the union, but the legacy form is retained for
+consistency and to stay safe under any pydantic reflection path (踩坑 #33 —
+older mcp/pydantic eval'd the union to ``types.UnionType`` and crashed the
+``issubclass`` check).
 """
 
 import functools
@@ -18,8 +20,9 @@ from pathlib import Path
 from typing import Any, Optional
 
 import requests
-from mcp.server.fastmcp import FastMCP
+from mcp.server import MCPServer
 
+from proxmox_aiops import __version__
 from proxmox_aiops.config import load_config
 from proxmox_aiops.connection import ConnectionManager
 from proxmox_aiops.governance import mark_unknown, sanitize
@@ -74,7 +77,7 @@ def tool_errors(shape: str = "dict") -> Callable:
     """Wrap a tool body in the canonical try/except → ``_safe_error`` pattern.
 
     Place this *between* ``@governed_tool`` and the function so the audit
-    decorator and FastMCP still see the original signature.
+    decorator and MCPServer still see the original signature.
     """
 
     def decorator(func: Callable) -> Callable:
@@ -103,8 +106,9 @@ def tool_errors(shape: str = "dict") -> Callable:
     return decorator
 
 
-mcp = FastMCP(
+mcp = MCPServer(
     "proxmox-aiops",
+    version=__version__,
     instructions=(
         "Proxmox VE operations: QEMU VM lifecycle (list/get/config, "
         "start/stop/shutdown/reboot, reconfigure, clone, delete, migrate), "
