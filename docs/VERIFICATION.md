@@ -1,5 +1,81 @@
 # Live verification — proxmox-aiops
 
+## 🔴 Round 2 — the QEMU write surface (2026-08-02): two real bugs
+
+The first round (below) exercised one LXC container and found nothing. This one
+drove a **real KVM guest** through the whole `vm.*` write surface — 14 of the
+tool's 18 write tools had never touched one — and found two defects, both of
+which the mock suite structurally could not see.
+
+### 1. A UPID is not an outcome (all 15 async writes)
+
+Proxmox VE's mutating endpoints are **asynchronous**: `POST .../status/start`
+answers 200 with a task UPID *before* the operation runs. The tool treated that
+200 as success. In one live session three operations that **failed on the node**
+were each reported green and recorded `status=ok`:
+
+| what the CLI printed | audit row | what PVE actually did |
+|---|---|---|
+| `Started VM 900` | `ok`, undo `effect_verified=1` | `start failed: QEMU exited with code 1` |
+| `Shutdown requested for VM 900` | `ok` | `VM quit/powerdown failed - got timeout` |
+| `Backup of 900 → local started` | `ok` | `job errors` (zero backups on the storage) |
+
+Matched by UPID, **3 of 14 audit rows claimed success for a server-side
+failure**. The damage is not cosmetic: the audit — this tool's central promise —
+recorded state changes that never happened, and `undo_list` advertised them as
+`effectVerified: true`, so `undo_apply` would have replayed an inverse for a
+change that never occurred.
+
+**Fixed** by `proxmox_aiops/ops/_task.py`: every write now resolves its task's
+real `exitstatus` and maps it onto the harness's existing three-way outcome
+model — `OK` → confirmed, non-OK → raise (audit `error`, **no** undo token),
+still-running/unreadable → `mark_unknown` (audit `unknown`, undo
+`effect_verified=0`). Bounded by `PROXMOX_TASK_WAIT_SECONDS` (default 20s, `0`
+disables waiting). An unreadable task status is **undetermined, never OK**.
+
+This also exposed a harness gap fixed line-wide: `is_unknown()` was only
+consulted for payloads that *also* carried an `error`, so an undetermined
+outcome that looked successful was audited `ok`.
+
+### 2. The CLI swallowed governance errors and exited 0 (17 sites)
+
+`vm resize-disk --size -1G` was correctly refused by `_reject_shrink`, but the
+CLI printed `Resized scsi0 on VM 900 to -1G` in green and **exited 0** —
+`@tool_errors` flattens the exception into `{"error": ...}` and *returns* it, and
+no CLI command inspected the result. Only 1 of 17 success prints checked
+anything. Same defect class already fixed in xcpng-aiops and veeam-aiops; this
+repo was never swept.
+
+**Fixed** by `cli/_common.checked()`, which every governed-twin call now passes
+through: error → red line + exit 1; `outcomeUnknown` → yellow line + exit 2
+(`EXIT_UNDETERMINED`), never green.
+
+### Re-verified live after the fix
+
+- failing start → red error carrying PVE's own reason, exit 1, audit `error`,
+  **undo.db never created**
+- refused shrink → red error, exit 1, no green line
+- successful start → exit 0, server reports `running`, undo `effectVerified:
+  true` → `undo apply` → `taskStatus: ok` → server reports `stopped`
+
+### Corrections to earlier notes
+
+- "the firewall/pool/storage **write** paths are untested" was wrong: those
+  three surfaces are **read-only by design** in this tool — there are no write
+  paths to test. The real gap was the QEMU write surface.
+- `ha resources` returning "HA not configured or none defined" rather than a
+  bare empty list is now confirmed against a real node.
+- `firewall cluster-status` correctly distinguishes `enable: 0` (disabled) from
+  `policy_out: null` (PVE returned no such key) — the null-vs-empty contract
+  holds on real data.
+- PVE itself returns `memory` as a **string** (`'512'`) while `cores` is an
+  `int`; the tool passes both through faithfully. Upstream inconsistency, not a
+  tool defect, but worth knowing before doing arithmetic on `memory`.
+
+Still untested after this round: multi-node cluster/quorum, HA with real
+resources, live migration (needs a second node), `move-disk` (needs a second
+storage), and a backup that actually succeeds.
+
 ## ✅ Live-verified against real Proxmox VE 8.4.19 (2026-08-01)
 
 Verified end-to-end against a real Proxmox VE 8.4.19 node (`pve1`, installed on

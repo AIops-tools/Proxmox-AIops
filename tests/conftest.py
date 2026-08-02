@@ -78,6 +78,41 @@ def _default_approver(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def _no_task_wait(monkeypatch):
+    """Never sleep waiting for a Proxmox task in the suite.
+
+    Writes now resolve their real outcome through
+    :mod:`proxmox_aiops.ops._task`, which polls the node's task status. With a
+    non-zero budget a mocked connection — whose task status is a ``MagicMock``,
+    not a dict — would be polled until the budget expired, so every write test
+    would idle for the full wait. A zero budget reads the status exactly once.
+
+    This makes an unmocked task endpoint fail *loudly* (verdict
+    ``undetermined``) rather than silently pass, which is the point: a fixture
+    that does not model Proxmox's asynchronous task is not modelling Proxmox.
+    Use :func:`mock_task` to declare the outcome a test expects.
+    """
+    monkeypatch.setenv("PROXMOX_TASK_WAIT_SECONDS", "0")
+
+
+def mock_task(conn: MagicMock, exitstatus: str | None = "OK") -> MagicMock:
+    """Make a mocked connection answer task-status polls.
+
+    Proxmox's mutating endpoints return a UPID *before* the work runs, so a
+    write's real outcome only exists in the task's ``exitstatus``. Tests must
+    say which outcome they are modelling:
+
+    * ``"OK"``      — the task succeeded (the usual case).
+    * ``"<text>"``  — the task failed with that message; the write must raise.
+    * ``None``      — the task is still running; the outcome is undetermined.
+    """
+    status = ({"status": "running"} if exitstatus is None
+              else {"status": "stopped", "exitstatus": exitstatus})
+    conn.nodes.return_value.tasks.return_value.status.get.return_value = status
+    return conn
+
+
+@pytest.fixture(autouse=True)
 def _clear_conn_node_cache():
     """Isolate the id()-keyed connection→node cache between tests.
 

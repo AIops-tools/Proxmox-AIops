@@ -13,7 +13,7 @@ import sqlite3
 from unittest.mock import MagicMock
 
 import pytest
-from conftest import assert_no_mutating_call
+from conftest import assert_no_mutating_call, mock_task
 from typer.testing import CliRunner
 
 import proxmox_aiops.governance.audit as audit_mod
@@ -45,8 +45,12 @@ def _mock_vm_conn() -> MagicMock:
     conn = MagicMock(name="conn")
     conn.nodes.get.return_value = [{"node": "pve1"}]  # cluster node scan
     conn.nodes.return_value.qemu.get.return_value = [{"vmid": 100, "name": "web"}]
-    conn.nodes.return_value.qemu.return_value.status.stop.post.return_value = "UPID:stop"
-    return conn
+    conn.nodes.return_value.qemu.return_value.status.stop.post.return_value = (
+        "UPID:pve1:0:0:0:qmstop:100:root@pam:"
+    )
+    # Proxmox returns a UPID before the work runs; a write is only confirmed
+    # once its task reports exitstatus OK.
+    return mock_task(conn)
 
 
 @pytest.mark.unit

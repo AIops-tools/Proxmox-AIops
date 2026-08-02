@@ -12,6 +12,7 @@ import importlib
 from unittest.mock import MagicMock
 
 import pytest
+from conftest import mock_task
 from typer.testing import CliRunner
 
 EXPECTED_TOOLS = {
@@ -223,7 +224,12 @@ def test_write_tool_records_undo_token_via_harness(monkeypatch):
     # Mock the proxmoxer connection used by the tool.
     conn = MagicMock(name="conn")
     conn.nodes.return_value.qemu.get.return_value = [{"vmid": 100, "name": "x"}]
-    conn.nodes.return_value.qemu.return_value.status.start.post.return_value = "UPID:..."
+    conn.nodes.return_value.qemu.return_value.status.start.post.return_value = (
+        "UPID:pve1:0:0:0:qmstart:100:root@pam:"
+    )
+    # Proxmox answers a write with a UPID before the work runs, so the write
+    # also polls the task; declare the outcome being modelled.
+    mock_task(conn)
     monkeypatch.setattr(vm_tools, "_get_connection", lambda target=None: conn)
 
     recorded = {}
@@ -254,6 +260,7 @@ def test_reconfigure_undo_restores_previous_values(monkeypatch):
     conn.nodes.return_value.qemu.return_value.config.get.return_value = {
         "cores": 2, "memory": 2048,
     }
+    mock_task(conn)
     monkeypatch.setattr(vm_tools, "_get_connection", lambda target=None: conn)
 
     recorded = {}

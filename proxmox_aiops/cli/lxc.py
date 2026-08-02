@@ -11,6 +11,7 @@ from proxmox_aiops.cli._common import (
     DryRunOption,
     NodeOption,
     TargetOption,
+    checked,
     cli_errors,
     double_confirm,
     dry_run_preview,
@@ -42,7 +43,7 @@ def ct_list(target: TargetOption = None, node: NodeOption = None) -> None:
 @cli_errors
 def ct_start(vmid: int, target: TargetOption = None, node: NodeOption = None) -> None:
     """Start an LXC container."""
-    result = gov.ct_start(vmid=vmid, target=target, node=node)
+    result = checked(gov.ct_start(vmid=vmid, target=target, node=node))
     console.print(f"[green]Started container {vmid}[/] (task: {result['task']})")
 
 
@@ -59,5 +60,5 @@ def ct_stop(
             operation="stop_ct", api_call=f"lxc({vmid}).status.stop.post()")
         return
     double_confirm("stop", f"container {vmid}")
-    result = gov.ct_stop(vmid=vmid, target=target, node=node)
+    result = checked(gov.ct_stop(vmid=vmid, target=target, node=node))
     console.print(f"[green]Stopped container {vmid}[/] (task: {result['task']})")

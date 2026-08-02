@@ -37,6 +37,7 @@ def _cli_error_types() -> tuple[type[BaseException], ...]:
     """
     from proxmox_aiops.governance import PolicyDenied
     from proxmox_aiops.governance.budget import BudgetExceeded
+    from proxmox_aiops.ops._task import TaskFailed
     from proxmox_aiops.ops.lxc import ContainerNotFoundError
     from proxmox_aiops.ops.vm_lifecycle import NodeRequiredError, VMNotFoundError
 
@@ -46,10 +47,56 @@ def _cli_error_types() -> tuple[type[BaseException], ...]:
         VMNotFoundError,
         ContainerNotFoundError,
         NodeRequiredError,
+        TaskFailed,
         KeyError,
         OSError,
         ValueError,
     )
+
+
+#: Exit code for an operation whose outcome could not be determined. Distinct
+#: from 0 (confirmed) and 1 (failed) on purpose: a long clone that is still
+#: running is not a failure, but it is emphatically not a success either, and a
+#: script must be able to tell all three apart.
+EXIT_UNDETERMINED = 2
+
+
+def checked(result: Any) -> Any:
+    """Return ``result``, or abort when it reports a failed/undetermined write.
+
+    Every CLI command that calls a governed twin MUST pass the result through
+    here before printing its success line.
+
+    Governed twins are wrapped in ``@tool_errors``, which flattens any exception
+    into ``{"error": ...}`` and **returns** it. The CLI therefore never sees the
+    exception, so a command that prints ``[green]Done[/]`` unconditionally
+    reports a refused or failed operation as done — and exits 0, so a script
+    cannot tell either. Live-verified on Proxmox VE 8.4.19 (2026-08-02): a
+    refused disk shrink printed "Resized scsi0 on VM 900 to -1G" and exited 0.
+    (Same defect class already fixed in two sibling tools; this repo was never
+    swept.)
+
+    ``outcomeUnknown`` is neither success nor failure — the write may still land
+    (see :mod:`proxmox_aiops.ops._task`). It gets its own yellow line and
+    :data:`EXIT_UNDETERMINED`, never a green one.
+    """
+    if not isinstance(result, dict):
+        return result
+    error = result.get("error")
+    if error:
+        console.print(f"[red]Error: {error}[/]")
+        hint = result.get("hint")
+        if hint:
+            console.print(f"[dim]{hint}[/]")
+        raise typer.Exit(1)
+    if result.get("outcomeUnknown"):
+        detail = result.get("taskDetail") or result.get("note") or ""
+        console.print(f"[yellow]Outcome undetermined: {detail}[/]")
+        task = result.get("task")
+        if task:
+            console.print(f"[dim]Poll it with: cluster task-status {task}[/]")
+        raise typer.Exit(EXIT_UNDETERMINED)
+    return result
 
 
 def cli_errors(fn: Callable) -> Callable:

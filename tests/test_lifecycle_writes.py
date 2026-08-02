@@ -24,7 +24,7 @@ import sqlite3
 from unittest.mock import MagicMock
 
 import pytest
-from conftest import assert_no_mutating_call
+from conftest import assert_no_mutating_call, mock_task
 
 import proxmox_aiops.governance.audit as audit_mod
 import proxmox_aiops.governance.policy as policy_mod
@@ -74,14 +74,16 @@ def _qemu_conn(vmid: int = 100) -> MagicMock:
     """A mocked connection whose node 'pve1' hosts QEMU VM ``vmid``."""
     conn = MagicMock(name="conn")
     conn.nodes.return_value.qemu.get.return_value = [{"vmid": vmid, "name": "web"}]
-    return conn
+    # Proxmox answers a write with a UPID before the work runs, so every
+    # write also polls the task. Declare the outcome this fixture models.
+    return mock_task(conn)
 
 
 def _lxc_conn(vmid: int = 200) -> MagicMock:
     """A mocked connection whose node 'pve1' hosts LXC container ``vmid``."""
     conn = MagicMock(name="conn")
     conn.nodes.return_value.lxc.get.return_value = [{"vmid": vmid, "name": "ct"}]
-    return conn
+    return mock_task(conn)
 
 
 def _wire(monkeypatch, module, conn) -> None:

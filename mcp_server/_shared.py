@@ -26,6 +26,7 @@ from proxmox_aiops import __version__
 from proxmox_aiops.config import load_config
 from proxmox_aiops.connection import ConnectionManager
 from proxmox_aiops.governance import mark_unknown, sanitize
+from proxmox_aiops.ops._task import TaskFailed
 from proxmox_aiops.ops.lxc import ContainerNotFoundError
 from proxmox_aiops.ops.vm_lifecycle import NodeRequiredError, VMNotFoundError
 
@@ -67,6 +68,11 @@ def _safe_error(exc: Exception, tool: str) -> str:
         VMNotFoundError,
         NodeRequiredError,
         ContainerNotFoundError,
+        # The node's own reason a task failed ("start failed: QEMU exited with
+        # code 1") IS the diagnostic. Collapsing it to "TaskFailed: operation
+        # failed." throws away the only sentence that tells the operator what
+        # to fix — the same defect as truncating a remediation hint away.
+        TaskFailed,
     )
     if isinstance(exc, _passthrough):
         return sanitize(str(exc), _ERROR_MAX)

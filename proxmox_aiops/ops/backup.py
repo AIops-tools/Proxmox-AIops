@@ -12,6 +12,7 @@ from typing import Any
 
 from proxmox_aiops.connection import get_default_node
 from proxmox_aiops.governance import opt_str, sanitize
+from proxmox_aiops.ops._task import settle
 from proxmox_aiops.ops.vm_lifecycle import NodeRequiredError, VMNotFoundError
 
 
@@ -68,14 +69,18 @@ def vm_backup(
     upid = conn.nodes(host_node).vzdump.post(
         vmid=int(vmid), storage=storage, mode=mode, compress=compress
     )
-    return {
-        "vmid": int(vmid),
-        "node": host_node,
-        "storage": sanitize(storage, 64),
-        "mode": sanitize(mode, 16),
-        "action": "vm_backup",
-        "task": sanitize(str(upid), 256),
-    }
+    return settle(
+        conn,
+        {
+            "vmid": int(vmid),
+            "node": host_node,
+            "storage": sanitize(storage, 64),
+            "mode": sanitize(mode, 16),
+            "action": "vm_backup",
+            "task": sanitize(str(upid), 256),
+        },
+        upid=str(upid), node=host_node,
+    )
 
 
 def list_backups(
@@ -133,15 +138,19 @@ def restore_backup(
     upid = conn.nodes(resolved).qemu.post(
         vmid=int(vmid), archive=archive, storage=storage, force=1 if force else 0
     )
-    return {
-        "vmid": int(vmid),
-        "node": resolved,
-        "archive": sanitize(archive, 256),
-        "storage": sanitize(storage, 64),
-        "existed_before": existed_before,
-        "action": "backup_restore",
-        "task": sanitize(str(upid), 256),
-    }
+    return settle(
+        conn,
+        {
+            "vmid": int(vmid),
+            "node": resolved,
+            "archive": sanitize(archive, 256),
+            "storage": sanitize(storage, 64),
+            "existed_before": existed_before,
+            "action": "backup_restore",
+            "task": sanitize(str(upid), 256),
+        },
+        upid=str(upid), node=resolved,
+    )
 
 
 def preview_restore(

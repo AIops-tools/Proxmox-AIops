@@ -11,6 +11,7 @@ from typing import Any
 
 from proxmox_aiops.connection import get_default_node
 from proxmox_aiops.governance import opt_str, sanitize
+from proxmox_aiops.ops._task import settle
 
 
 class VMNotFoundError(Exception):
@@ -93,32 +94,48 @@ def start_vm(conn: Any, vmid: int, node: str | None = None) -> dict:
     """[WRITE] Start a VM. Returns the task UPID. Inverse: stop_vm."""
     host_node = _find_node_for_vmid(conn, vmid, node)
     upid = conn.nodes(host_node).qemu(vmid).status.start.post()
-    return {"vmid": int(vmid), "node": host_node, "action": "start",
-            "task": sanitize(str(upid), 256)}
+    return settle(
+        conn,
+        {"vmid": int(vmid), "node": host_node, "action": "start",
+            "task": sanitize(str(upid), 256)},
+        upid=str(upid), node=host_node,
+    )
 
 
 def stop_vm(conn: Any, vmid: int, node: str | None = None) -> dict:
     """[WRITE] Hard-stop a VM (power off). Returns the task UPID. Inverse: start_vm."""
     host_node = _find_node_for_vmid(conn, vmid, node)
     upid = conn.nodes(host_node).qemu(vmid).status.stop.post()
-    return {"vmid": int(vmid), "node": host_node, "action": "stop",
-            "task": sanitize(str(upid), 256)}
+    return settle(
+        conn,
+        {"vmid": int(vmid), "node": host_node, "action": "stop",
+            "task": sanitize(str(upid), 256)},
+        upid=str(upid), node=host_node,
+    )
 
 
 def snapshot_create(conn: Any, vmid: int, name: str, node: str | None = None) -> dict:
     """[WRITE] Create a named snapshot. Inverse: snapshot_delete(name)."""
     host_node = _find_node_for_vmid(conn, vmid, node)
     upid = conn.nodes(host_node).qemu(vmid).snapshot.post(snapname=name)
-    return {"vmid": int(vmid), "node": host_node, "snapshot": sanitize(name, 64),
-            "action": "snapshot_create", "task": sanitize(str(upid), 256)}
+    return settle(
+        conn,
+        {"vmid": int(vmid), "node": host_node, "snapshot": sanitize(name, 64),
+            "action": "snapshot_create", "task": sanitize(str(upid), 256)},
+        upid=str(upid), node=host_node,
+    )
 
 
 def snapshot_delete(conn: Any, vmid: int, name: str, node: str | None = None) -> dict:
     """[WRITE] Delete a named snapshot."""
     host_node = _find_node_for_vmid(conn, vmid, node)
     upid = conn.nodes(host_node).qemu(vmid).snapshot(name).delete()
-    return {"vmid": int(vmid), "node": host_node, "snapshot": sanitize(name, 64),
-            "action": "snapshot_delete", "task": sanitize(str(upid), 256)}
+    return settle(
+        conn,
+        {"vmid": int(vmid), "node": host_node, "snapshot": sanitize(name, 64),
+            "action": "snapshot_delete", "task": sanitize(str(upid), 256)},
+        upid=str(upid), node=host_node,
+    )
 
 
 def list_snapshots(conn: Any, vmid: int, node: str | None = None) -> list[dict]:
@@ -139,16 +156,24 @@ def shutdown_vm(conn: Any, vmid: int, node: str | None = None) -> dict:
     """[WRITE] Graceful ACPI shutdown (vs hard stop_vm). Inverse: start_vm."""
     host_node = _find_node_for_vmid(conn, vmid, node)
     upid = conn.nodes(host_node).qemu(vmid).status.shutdown.post()
-    return {"vmid": int(vmid), "node": host_node, "action": "shutdown",
-            "task": sanitize(str(upid), 256)}
+    return settle(
+        conn,
+        {"vmid": int(vmid), "node": host_node, "action": "shutdown",
+            "task": sanitize(str(upid), 256)},
+        upid=str(upid), node=host_node,
+    )
 
 
 def reboot_vm(conn: Any, vmid: int, node: str | None = None) -> dict:
     """[WRITE] Reboot a VM (graceful). No clean inverse."""
     host_node = _find_node_for_vmid(conn, vmid, node)
     upid = conn.nodes(host_node).qemu(vmid).status.reboot.post()
-    return {"vmid": int(vmid), "node": host_node, "action": "reboot",
-            "task": sanitize(str(upid), 256)}
+    return settle(
+        conn,
+        {"vmid": int(vmid), "node": host_node, "action": "reboot",
+            "task": sanitize(str(upid), 256)},
+        upid=str(upid), node=host_node,
+    )
 
 
 def get_vm_config(conn: Any, vmid: int, node: str | None = None) -> dict:
@@ -188,14 +213,19 @@ def reconfigure_vm(
         changes["cores"] = int(cores)
     if memory is not None:
         changes["memory"] = int(memory)
-    conn.nodes(host_node).qemu(vmid).config.post(**changes)
-    return {
-        "vmid": int(vmid),
-        "node": host_node,
-        "action": "reconfigure",
-        "applied": changes,
-        "previous": {"cores": prev.get("cores"), "memory": prev.get("memory")},
-    }
+    upid = conn.nodes(host_node).qemu(vmid).config.post(**changes)
+    return settle(
+        conn,
+        {
+            "vmid": int(vmid),
+            "node": host_node,
+            "action": "reconfigure",
+            "applied": changes,
+            "previous": {"cores": prev.get("cores"),
+                         "memory": prev.get("memory")},
+        },
+        upid=str(upid), node=host_node,
+    )
 
 
 def preview_reconfigure(
@@ -242,16 +272,24 @@ def clone_vm(
     if name:
         kwargs["name"] = name
     upid = conn.nodes(host_node).qemu(vmid).clone.post(**kwargs)
-    return {"vmid": int(vmid), "newid": int(newid), "node": host_node,
-            "action": "clone", "task": sanitize(str(upid), 256)}
+    return settle(
+        conn,
+        {"vmid": int(vmid), "newid": int(newid), "node": host_node,
+         "action": "clone", "task": sanitize(str(upid), 256)},
+        upid=str(upid), node=host_node,
+    )
 
 
 def delete_vm(conn: Any, vmid: int, node: str | None = None) -> dict:
     """[WRITE] Destroy a VM permanently. No safe inverse — irreversible."""
     host_node = _find_node_for_vmid(conn, vmid, node)
     upid = conn.nodes(host_node).qemu(vmid).delete()
-    return {"vmid": int(vmid), "node": host_node, "action": "delete",
-            "task": sanitize(str(upid), 256)}
+    return settle(
+        conn,
+        {"vmid": int(vmid), "node": host_node, "action": "delete",
+            "task": sanitize(str(upid), 256)},
+        upid=str(upid), node=host_node,
+    )
 
 
 def migrate_vm(
@@ -266,13 +304,21 @@ def migrate_vm(
     upid = conn.nodes(host_node).qemu(vmid).migrate.post(
         target=target_node, online=1 if online else 0
     )
-    return {"vmid": int(vmid), "from_node": host_node, "to_node": target_node,
-            "action": "migrate", "task": sanitize(str(upid), 256)}
+    return settle(
+        conn,
+        {"vmid": int(vmid), "from_node": host_node, "to_node": target_node,
+         "action": "migrate", "task": sanitize(str(upid), 256)},
+        upid=str(upid), node=host_node,
+    )
 
 
 def rollback_snapshot(conn: Any, vmid: int, name: str, node: str | None = None) -> dict:
     """[WRITE] Roll a VM back to a snapshot. No clean inverse (discards changes)."""
     host_node = _find_node_for_vmid(conn, vmid, node)
     upid = conn.nodes(host_node).qemu(vmid).snapshot(name).rollback.post()
-    return {"vmid": int(vmid), "node": host_node, "snapshot": sanitize(name, 64),
-            "action": "snapshot_rollback", "task": sanitize(str(upid), 256)}
+    return settle(
+        conn,
+        {"vmid": int(vmid), "node": host_node, "snapshot": sanitize(name, 64),
+            "action": "snapshot_rollback", "task": sanitize(str(upid), 256)},
+        upid=str(upid), node=host_node,
+    )

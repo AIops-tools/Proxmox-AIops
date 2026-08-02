@@ -8,6 +8,7 @@ resource-path proxy), so no real PVE is needed.
 from unittest.mock import MagicMock
 
 import pytest
+from conftest import mock_task
 
 from proxmox_aiops.connection import _CONN_NODE
 from proxmox_aiops.ops import agent as ag
@@ -22,7 +23,9 @@ def _conn_with_qemu(vmid: int = 100) -> MagicMock:
     """A mocked connection whose node hosts a single QEMU VM ``vmid``."""
     conn = MagicMock(name="conn")
     conn.nodes.return_value.qemu.get.return_value = [{"vmid": vmid}]
-    return conn
+    # Proxmox answers a write with a UPID before the work runs, so every write
+    # also polls the task. This fixture models a task that succeeds.
+    return mock_task(conn)
 
 
 # ─── backups ───────────────────────────────────────────────────────────────
@@ -312,6 +315,8 @@ def test_backup_restore_undo_deletes_only_new_vm(monkeypatch):
     conn.nodes.return_value.qemu.get.return_value = []  # vmid absent → new VM
     conn.nodes.return_value.lxc.get.return_value = []
     conn.nodes.return_value.qemu.post.return_value = "UPID:pve1:restore"
+    # A restore is only confirmed once its task reports exitstatus OK.
+    mock_task(conn)
     monkeypatch.setattr(backup_tools, "_get_connection", lambda target=None: conn)
 
     recorded = {}

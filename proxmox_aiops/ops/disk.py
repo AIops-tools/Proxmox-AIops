@@ -10,6 +10,7 @@ from __future__ import annotations
 from typing import Any
 
 from proxmox_aiops.governance import sanitize
+from proxmox_aiops.ops._task import settle
 from proxmox_aiops.ops.vm_lifecycle import _find_node_for_vmid
 
 _UNIT_BYTES: dict[str, int] = {
@@ -70,14 +71,18 @@ def resize_disk(
     """
     host_node = _find_node_for_vmid(conn, vmid, node)
     _reject_shrink(conn, host_node, vmid, disk, size)
-    conn.nodes(host_node).qemu(vmid).resize.put(disk=disk, size=size)
-    return {
-        "vmid": int(vmid),
-        "node": host_node,
-        "disk": sanitize(disk, 32),
-        "size": sanitize(size, 32),
-        "action": "vm_resize_disk",
-    }
+    upid = conn.nodes(host_node).qemu(vmid).resize.put(disk=disk, size=size)
+    return settle(
+        conn,
+        {
+            "vmid": int(vmid),
+            "node": host_node,
+            "disk": sanitize(disk, 32),
+            "size": sanitize(size, 32),
+            "action": "vm_resize_disk",
+        },
+        upid=str(upid), node=host_node,
+    )
 
 
 def move_disk(
@@ -98,15 +103,19 @@ def move_disk(
     upid = conn.nodes(host_node).qemu(vmid).move_disk.post(
         disk=disk, storage=storage, delete=1 if delete else 0
     )
-    return {
-        "vmid": int(vmid),
-        "node": host_node,
-        "disk": sanitize(disk, 32),
-        "to_storage": sanitize(storage, 64),
-        "from_storage": sanitize(source_storage, 64),
-        "action": "vm_move_disk",
-        "task": sanitize(str(upid), 256),
-    }
+    return settle(
+        conn,
+        {
+            "vmid": int(vmid),
+            "node": host_node,
+            "disk": sanitize(disk, 32),
+            "to_storage": sanitize(storage, 64),
+            "from_storage": sanitize(source_storage, 64),
+            "action": "vm_move_disk",
+            "task": sanitize(str(upid), 256),
+        },
+        upid=str(upid), node=host_node,
+    )
 
 
 def _disk_source_storage(conn: Any, node: str, vmid: int, disk: str) -> str:

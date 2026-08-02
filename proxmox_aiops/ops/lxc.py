@@ -12,6 +12,7 @@ from typing import Any
 
 from proxmox_aiops.connection import get_default_node
 from proxmox_aiops.governance import opt_str, sanitize
+from proxmox_aiops.ops._task import settle
 
 
 class ContainerNotFoundError(Exception):
@@ -57,13 +58,21 @@ def start_ct(conn: Any, vmid: int, node: str | None = None) -> dict:
     """[WRITE] Start an LXC container. Returns task UPID. Inverse: stop_ct."""
     host_node = _find_node_for_ct(conn, vmid, node)
     upid = conn.nodes(host_node).lxc(vmid).status.start.post()
-    return {"vmid": int(vmid), "node": host_node, "action": "ct_start",
-            "task": sanitize(str(upid), 256)}
+    return settle(
+        conn,
+        {"vmid": int(vmid), "node": host_node, "action": "ct_start",
+         "task": sanitize(str(upid), 256)},
+        upid=str(upid), node=host_node,
+    )
 
 
 def stop_ct(conn: Any, vmid: int, node: str | None = None) -> dict:
     """[WRITE] Stop an LXC container. Returns task UPID. Inverse: start_ct."""
     host_node = _find_node_for_ct(conn, vmid, node)
     upid = conn.nodes(host_node).lxc(vmid).status.stop.post()
-    return {"vmid": int(vmid), "node": host_node, "action": "ct_stop",
-            "task": sanitize(str(upid), 256)}
+    return settle(
+        conn,
+        {"vmid": int(vmid), "node": host_node, "action": "ct_stop",
+         "task": sanitize(str(upid), 256)},
+        upid=str(upid), node=host_node,
+    )

@@ -14,6 +14,7 @@ import sqlite3
 from unittest.mock import MagicMock
 
 import pytest
+from conftest import mock_task
 
 import proxmox_aiops.governance.audit as audit_mod
 import proxmox_aiops.governance.policy as policy_mod
@@ -133,6 +134,9 @@ def test_real_write_tool_persists_priorstate_undo(gov_home, monkeypatch):
     conn.nodes.return_value.qemu.return_value.config.get.return_value = {
         "cores": 2, "memory": 2048,
     }
+    # Proxmox answers a write with a UPID before the work runs, so the write
+    # also polls the task; declare the outcome being modelled.
+    mock_task(conn)
     monkeypatch.setattr(gov, "_get_connection", lambda target=None: conn)
 
     result = gov.vm_reconfigure(vmid=100, cores=8, memory=8192, node="pve1")
