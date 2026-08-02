@@ -17,8 +17,11 @@ from proxmox_aiops.ops import ha
 def ha_status(target: Optional[str] = None) -> dict:
     """[READ] Current HA status entries, or a not-configured signal.
 
-    Returns {"configured": bool, "entries": [...]}; when HA is absent the list
-    is empty and a message explains it.
+    Returns {"configured": bool, "entries": [...]}. Do NOT infer "HA is set up"
+    from a non-empty entries list: every quorate cluster reports a quorum row,
+    and master/lrm rows once the HA stack has run, with zero resources defined.
+    "configured" is true only when HA actually manages something; when it is
+    false a message explains that the rows describe the stack itself.
 
     Args:
         target: Proxmox target name from config.

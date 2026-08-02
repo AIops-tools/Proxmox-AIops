@@ -68,7 +68,7 @@ sizes are small high-signal summaries, not full API blobs.
 
 | Tool | R/W | Notes |
 |------|:---:|-------|
-| `ha_status` | R | `{configured, entries}`; clear signal when HA absent |
+| `ha_status` | R | `{configured, entries}`; `configured` is true only when HA manages a resource — every cluster reports quorum/master/lrm rows regardless |
 | `ha_resource_list` | R | HA-managed resources; empty when HA absent |
 
 ## Pools (2)
