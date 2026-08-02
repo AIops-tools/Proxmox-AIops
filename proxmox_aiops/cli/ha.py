@@ -21,7 +21,8 @@ def ha_status(target: TargetOption = None) -> None:
     result = ha.ha_status(conn)
     if not result["configured"]:
         console.print(f"[yellow]{result.get('message', 'HA not configured.')}[/]")
-        return
+    # The stack rows are still worth printing when no resource is managed —
+    # "no quorum on node X" arrives on the quorum row, not on a service.
     for e in result["entries"]:
         console.print(f"  [cyan]{e['type']}[/] {e['id']} node={e['node']} "
                       f"status={e['status']}")

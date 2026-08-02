@@ -1,6 +1,12 @@
 # Changelog
 
-## v0.9.0 — 2026-08-02
+## Unreleased
+
+### Fixed
+- **`ha_status` no longer reports HA as configured on every cluster.** `configured` was a truthiness test on the returned list, but a quorate cluster always answers `/cluster/ha/status/current` with a synthetic `quorum` row — plus `master`/`lrm` rows once the HA stack has ever run — even with zero HA resources defined. It is now decided by the presence of `service` entries, and the not-configured case explains that the remaining rows describe the HA stack itself. Live-verified on a real 2-node PVE 8.4.19 cluster in both directions. The CLI still prints the stack rows in that case: "no quorum on node X" arrives on the quorum row, not on a service.
+
+### Added
+- HA status entries expose `state` and `requestState` as fields. A service's desired/actual state was previously reachable only by parsing the human `status` string (`"vm:900 (pve1, started)"`). The keys are present, null-valued, on rows that have no state.
 
 ### Changed (BREAKING)
 - **Requires MCP SDK 2.0** (`mcp[cli]>=2.0,<3.0`). `mcp.server.fastmcp` no longer exists in 2.0; the server is now built with `MCPServer` and reports its package version in the stdio handshake.

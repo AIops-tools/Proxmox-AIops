@@ -239,6 +239,54 @@ def test_ha_status_configured():
 
 
 @pytest.mark.unit
+def test_ha_status_not_configured_when_only_stack_rows():
+    """A cluster with zero HA resources must not report HA as configured.
+
+    Payload copied from a real 2-node PVE 8.4.19 cluster with no HA resources
+    defined: the endpoint always answers with a synthetic ``quorum`` row, and
+    keeps ``master``/``lrm`` rows once the HA stack has ever run. Judging
+    ``configured`` by list truthiness made every cluster look HA-configured.
+    """
+    conn = MagicMock(name="conn")
+    conn.cluster.ha.status.current.get.return_value = [
+        {"id": "quorum", "node": "pve1", "quorate": 1, "status": "OK",
+         "type": "quorum"},
+        {"id": "master", "node": "pve1", "type": "master",
+         "status": "pve1 (active, Sun Aug  2 12:51:28 2026)"},
+        {"id": "lrm:pve1", "node": "pve1", "type": "lrm",
+         "status": "pve1 (active, Sun Aug  2 12:51:29 2026)"},
+        {"id": "lrm:pve2", "node": "pve2", "type": "lrm",
+         "status": "pve2 (idle, Sun Aug  2 12:51:32 2026)"},
+    ]
+    result = ha.ha_status(conn)
+    assert result["configured"] is False
+    assert len(result["entries"]) == 4  # the stack rows are still reported
+    assert "manages no resources" in result["message"]
+
+
+@pytest.mark.unit
+def test_ha_status_service_state_is_a_field_not_a_sentence():
+    """Service rows expose state/requestState instead of only a human string."""
+    conn = MagicMock(name="conn")
+    conn.cluster.ha.status.current.get.return_value = [
+        {"id": "quorum", "node": "pve1", "quorate": 1, "status": "OK",
+         "type": "quorum"},
+        {"id": "service:vm:900", "node": "pve1", "type": "service",
+         "sid": "vm:900", "state": "started", "request_state": "started",
+         "crm_state": "started", "status": "vm:900 (pve1, started)"},
+    ]
+    result = ha.ha_status(conn)
+    assert result["configured"] is True
+    assert "message" not in result
+    service = result["entries"][1]
+    assert service["state"] == "started"
+    assert service["requestState"] == "started"
+    # keys stay present on rows that have no state, rather than vanishing
+    assert result["entries"][0]["state"] is None
+    assert result["entries"][0]["requestState"] is None
+
+
+@pytest.mark.unit
 def test_ha_resource_list_empty_when_absent():
     conn = MagicMock(name="conn")
     conn.cluster.ha.resources.get.side_effect = Exception("404 not found")

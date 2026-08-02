@@ -21,8 +21,13 @@ def _ha_not_configured(exc: Exception) -> bool:
 def ha_status(conn: Any) -> dict:
     """[READ] Current HA manager/status entries, or a not-configured signal.
 
-    Returns ``{"configured": bool, "entries": [...]}``. When HA is absent the
-    entries list is empty and a ``message`` explains it (no crash).
+    Returns ``{"configured": bool, "entries": [...]}``. ``configured`` means
+    "HA actually manages something", which is decided by the presence of
+    ``service`` entries — NOT by the list being non-empty. Every quorate
+    cluster answers this endpoint with a synthetic ``quorum`` row (and, once
+    the HA stack has ever run, ``master``/``lrm`` rows) even when zero
+    resources are defined, so a truthiness test on the list reports HA as
+    configured on every cluster in existence.
     """
     try:
         items = conn.cluster.ha.status.current.get()
@@ -41,10 +46,24 @@ def ha_status(conn: Any) -> dict:
             "node": opt_str(i.get("node"), 64),
             "status": opt_str(i.get("status"), 64),
             "quorate": i.get("quorate"),
+            # Service rows carry the desired/actual state as real fields. They
+            # used to be reachable only by parsing the human ``status`` string
+            # ("vm:900 (pve1, started)"); the keys stay present, null-valued,
+            # on the stack rows that have no state.
+            "state": opt_str(i.get("state"), 32),
+            "requestState": opt_str(i.get("request_state"), 32),
         }
         for i in items
     ]
-    return {"configured": bool(entries), "entries": entries}
+    services = [e for e in entries if e["type"] == "service"]
+    result: dict = {"configured": bool(services), "entries": entries}
+    if not services:
+        result["message"] = (
+            "Proxmox HA manages no resources here. The entries describe the HA "
+            "stack itself (quorum/master/lrm), which every cluster reports. "
+            "Define one with 'ha-manager add <sid>' before relying on HA."
+        )
+    return result
 
 
 def ha_resource_list(conn: Any) -> list[dict]:
