@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Changed (BREAKING)
+- **Requires MCP SDK 2.0** (`mcp[cli]>=2.0,<3.0`). `mcp.server.fastmcp` no longer exists in 2.0; the server is now built with `MCPServer` and reports its package version in the stdio handshake.
+
+### Fixed
+- **`undo apply` works from the CLI.** Every write tool is imported lazily inside its own CLI command, so a CLI-driven undo ran in a process where the inverse tool was never registered and failed with "inverse tool is not registered" — for every write tool. Only the MCP entry point, which imports the whole server, worked.
+
 ### Fixed (BEHAVIOUR CHANGE)
 - **A task UPID is no longer treated as success.** Proxmox's mutating endpoints are asynchronous — they answer 200 with a UPID *before* the operation runs — so every write now resolves the task's real `exitstatus`. A task that failed raises (audit `error`, no undo token); one still running or unreadable is marked undetermined (audit `unknown`, undo `effect_verified=0`). Live-verified against Proxmox VE 8.4.19: a start that died with "QEMU exited with code 1", a shutdown that timed out, and a backup that ended in "job errors" had all been recorded `status=ok` with `effect_verified=1`. Bounded by `PROXMOX_TASK_WAIT_SECONDS` (default 20s; `0` never waits).
 - **The CLI no longer prints success for a failed or refused write.** Governed twins return `{"error": ...}` rather than raising, and no command inspected the result: a refused disk shrink printed a green "Resized ..." line and exited 0. Every governed-twin call now goes through `checked()` — errors exit 1, an undetermined outcome exits 2 (`EXIT_UNDETERMINED`) with a yellow line and the UPID to poll.
