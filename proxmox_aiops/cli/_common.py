@@ -83,12 +83,11 @@ def checked(result: Any) -> Any:
     if not isinstance(result, dict):
         return result
     error = result.get("error")
-    if error:
-        console.print(f"[red]Error: {error}[/]")
-        hint = result.get("hint")
-        if hint:
-            console.print(f"[dim]{hint}[/]")
-        raise typer.Exit(1)
+    # ``outcomeUnknown`` is judged BEFORE ``error``, matching the harness: a
+    # write whose response was lost carries BOTH keys, and it is audited
+    # `unknown` precisely because it may have taken effect. Reporting that as a
+    # plain failure would tell a script the change did not happen and invite the
+    # double-apply the payload's own note warns about.
     if result.get("outcomeUnknown"):
         detail = result.get("taskDetail") or result.get("note") or ""
         console.print(f"[yellow]Outcome undetermined: {detail}[/]")
@@ -96,6 +95,12 @@ def checked(result: Any) -> Any:
         if task:
             console.print(f"[dim]Poll it with: cluster task-status {task}[/]")
         raise typer.Exit(EXIT_UNDETERMINED)
+    if error:
+        console.print(f"[red]Error: {error}[/]")
+        hint = result.get("hint")
+        if hint:
+            console.print(f"[dim]{hint}[/]")
+        raise typer.Exit(1)
     return result
 
 

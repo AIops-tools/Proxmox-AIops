@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.12.0 — 2026-08-10
+
+### Fixed
+- **An undetermined outcome no longer exits as a plain failure.** A write whose response was lost carries *both* `error` and `outcomeUnknown`, and the harness deliberately judges unknown first when writing the audit row — the change may have taken effect, so a blind retry could apply it twice. The CLI guard judged `error` first, so the audit said "may have taken effect" while the exit status told a script it had not happened. The two layers now agree (exit 2, not 1), and a test pins the ordering so it cannot silently flip back.
+
 ## v0.11.0 — 2026-08-03
 
 ### Fixed
