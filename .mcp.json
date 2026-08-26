@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "proxmox-aiops": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": [
+        "--from",
+        "proxmox-aiops==0.12.0",
+        "proxmox-aiops-mcp"
+      ]
+    }
+  }
+}

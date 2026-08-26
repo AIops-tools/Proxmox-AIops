@@ -10,9 +10,12 @@ guard, undo-token recording, and descriptive risk-tier labels. Self-contained:
 no external dependencies beyond `proxmoxer` and the MCP SDK. Coverage is not
 yet exhaustive across every Proxmox operation.
 
-> **Verification status**: the test suite is mock-based; this package has not
-> yet been validated end-to-end against a live Proxmox VE cluster. See
-> [docs/VERIFICATION.md](docs/VERIFICATION.md) for the live-verification checklist.
+> **Verification status**: live-verified against real Proxmox VE 8.4.19 across
+> three rounds — read-only surfaces, the QEMU write surface, and a two-node
+> cluster (quorum, live migration, `move-disk`, a backup that actually
+> succeeded). Rounds 2 and 3 each found a real bug the mocks could not see. See
+> [docs/VERIFICATION.md](docs/VERIFICATION.md) for exactly what was proven and
+> what is still uncovered.
 
 ## What works
 
@@ -46,6 +49,21 @@ the guardrails this tool now enforces for you (so you don't spend prompt budget
 restating them) and gives a ready-made system prompt for what's left.
 
 ## Quick start
+
+### As a Claude Code plugin
+
+One install gives an agent both the skill and the MCP server:
+
+```
+/plugin marketplace add AIops-tools/marketplace
+/plugin install proxmox-aiops@aiops-tools
+```
+
+The MCP server is fetched with [uv](https://docs.astral.sh/uv/) and pinned to the
+package version this plugin declares, so an audit row can be traced back to the
+code that wrote it. Credentials are still configured with `proxmox-aiops init` — see below.
+
+### As a CLI or standalone MCP server
 
 ```bash
 uv tool install proxmox-aiops
