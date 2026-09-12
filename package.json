@@ -1,0 +1,20 @@
+{
+  "name": "@aiops-tools/proxmox-aiops",
+  "version": "0.13.0",
+  "description": "Governed Proxmox VE VM/container ops — 43 MCP tools with audit, budget, undo & risk-tier guards.",
+  "private": true,
+  "license": "MIT",
+  "homepage": "https://github.com/AIops-tools/Proxmox-AIops",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/AIops-tools/Proxmox-AIops.git"
+  },
+  "openclaw": {
+    "compat": {
+      "pluginApi": ">=2026.3.24-beta.2"
+    },
+    "build": {
+      "openclawVersion": "2026.3.24-beta.2"
+    }
+  }
+}

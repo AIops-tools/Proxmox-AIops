@@ -18,7 +18,7 @@ installer:
 argument-hint: "[vmid or describe your Proxmox task]"
 allowed-tools:
   - Bash
-metadata: {"openclaw":{"requires":{"env":["PROXMOX_AIOPS_CONFIG"],"bins":["proxmox-aiops"],"config":["~/.proxmox-aiops/config.yaml","~/.proxmox-aiops/.env"]},"optional":{"env":["PROXMOX_TARGET_SECRET"]},"primaryEnv":"PROXMOX_AIOPS_CONFIG","homepage":"https://github.com/AIops-tools/Proxmox-AIops","emoji":"🧱","os":["macos","linux"]}}
+metadata: {"openclaw":{"requires":{"anyBins":["proxmox-aiops","uvx"]},"optional":{"env":["PROXMOX_AIOPS_CONFIG","PROXMOX_TARGET_SECRET"]},"homepage":"https://github.com/AIops-tools/Proxmox-AIops","emoji":"🧱","os":["macos","linux"]}}
 compatibility: >
   Standalone, self-governed Proxmox VE operations. The governance harness (audit, token/runaway budget, undo, risk-tier labels) is bundled in the package — no external skill-family dependency.
   All write operations are audited to a local SQLite DB under ~/.proxmox-aiops/ (relocatable via PROXMOX_AIOPS_HOME).

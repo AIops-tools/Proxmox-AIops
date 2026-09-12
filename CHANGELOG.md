@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.13.0 — 2026-09-12
 
 ### Added
 - **Installable as a Claude Code plugin.** `.claude-plugin/plugin.json` plus a
@@ -9,7 +9,19 @@
   pinned to the exact package version the manifest declares, so an audit row
   stays traceable to the code that produced it. Nothing about the tool itself
   changed — the CLI and the standalone MCP server work exactly as before.
+- **Installable from ClawHub as an OpenClaw bundle plugin** (`@aiops-tools/proxmox-aiops`): one install delivers the skill *and* its MCP
+  server, pinned to this exact release. `clawhub.ai/plugins`.
 
+### Fixed
+- **The skill was invisible to the model in OpenClaw.** Its metadata
+  declared `requires.config` (OpenClaw reads that as config *keys*, not file
+  paths, so it can never be satisfied), `requires.env` and `requires.bins`
+  naming our own CLI — which a plugin user never has on PATH — plus a
+  `primaryEnv` that turned a config path into an API-key prompt. Measured on
+  OpenClaw 2026.6.35: `Visible to model: no`. It now requires
+  `anyBins: [proxmox-aiops, uvx]` — either one suffices — with every variable kept
+  in `optional.env` (still declared, no longer a load gate), which the same
+  command reports as `Visible to model: yes`.
 ## v0.12.0 — 2026-08-10
 
 ### Fixed

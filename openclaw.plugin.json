@@ -1,0 +1,24 @@
+{
+  "id": "proxmox-aiops",
+  "name": "Proxmox AIops",
+  "description": "Governed Proxmox VE VM/container ops — 43 MCP tools with audit, budget, undo & risk-tier guards.",
+  "skills": [
+    "./skills"
+  ],
+  "mcpServers": {
+    "proxmox-aiops": {
+      "transport": "stdio",
+      "command": "uvx",
+      "args": [
+        "--from",
+        "proxmox-aiops==0.13.0",
+        "proxmox-aiops-mcp"
+      ]
+    }
+  },
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}
