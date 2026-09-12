@@ -1,7 +1,7 @@
 {
   "name": "@aiops-tools/proxmox-aiops",
-  "version": "0.13.0",
-  "description": "Governed Proxmox VE VM/container ops — 43 MCP tools with audit, budget, undo & risk-tier guards.",
+  "version": "0.13.2",
+  "description": "Governed Proxmox VE VM/container ops \u2014 43 MCP tools with audit, budget, undo & risk-tier guards.",
   "private": true,
   "license": "MIT",
   "homepage": "https://github.com/AIops-tools/Proxmox-AIops",
