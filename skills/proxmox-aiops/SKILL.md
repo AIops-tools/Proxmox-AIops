@@ -61,6 +61,13 @@ uv tool install proxmox-aiops
 proxmox-aiops doctor
 ```
 
+Or as an OpenClaw plugin, which installs this skill and its MCP server together:
+
+```bash
+openclaw plugins install clawhub:@aiops-tools/proxmox-aiops
+openclaw skills info proxmox-aiops          # expect: Visible to model: yes
+```
+
 ## When to Use This Skill
 
 - List/inspect Proxmox QEMU VMs and their config
