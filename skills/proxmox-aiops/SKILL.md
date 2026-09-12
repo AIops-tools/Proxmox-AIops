@@ -64,7 +64,7 @@ proxmox-aiops doctor
 Or as an OpenClaw plugin, which installs this skill and its MCP server together:
 
 ```bash
-openclaw plugins install clawhub:@aiops-tools/proxmox-aiops
+openclaw plugins install clawhub:@zw008/proxmox-aiops
 openclaw skills info proxmox-aiops          # expect: Visible to model: yes
 ```
 
