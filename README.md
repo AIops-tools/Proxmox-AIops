@@ -73,8 +73,10 @@ openclaw plugins install clawhub:@aiops-tools/proxmox-aiops
 openclaw skills info proxmox-aiops          # expect: Visible to model: yes
 ```
 
-Restart the OpenClaw gateway afterwards so it loads the plugin. Credentials are
-configured exactly as below.
+Restart the OpenClaw gateway afterwards so it loads the plugin. The MCP server is
+fetched with [uv](https://docs.astral.sh/uv/), pinned to this exact release, so
+`uvx` has to be on `PATH` — without it the skill still installs but reports
+`Visible to model: no`. Credentials are configured exactly as below.
 
 ### As a CLI or standalone MCP server
 

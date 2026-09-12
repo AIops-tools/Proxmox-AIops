@@ -68,6 +68,8 @@ openclaw plugins install clawhub:@aiops-tools/proxmox-aiops
 openclaw skills info proxmox-aiops          # expect: Visible to model: yes
 ```
 
+Needs `uvx` on `PATH`: the MCP server is fetched with uv, pinned to this release.
+
 ## When to Use This Skill
 
 - List/inspect Proxmox QEMU VMs and their config
