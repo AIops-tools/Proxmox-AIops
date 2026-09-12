@@ -94,7 +94,8 @@ Example `~/.proxmox-aiops/config.yaml`:
 targets:
   - name: pve-lab
     host: 10.0.0.10
-    user: "root@pam!claude"   # API token: user@realm!tokenid
+    user: "claude@pve!ops"    # API token: user@realm!tokenid — a dedicated,
+                              # least-privilege user, NOT root@pam
     node: pve1
     auth_kind: token
     verify_ssl: false          # self-signed lab certs only
