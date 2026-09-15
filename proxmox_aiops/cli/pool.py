@@ -6,7 +6,7 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
-from proxmox_aiops.cli._common import TargetOption, cli_errors, get_connection
+from proxmox_aiops.cli._common import TargetOption, audited, cli_errors, get_connection
 from proxmox_aiops.ops import pool
 
 pool_app = typer.Typer(help="Resource-pool read operations.", no_args_is_help=True)
@@ -15,6 +15,7 @@ console = Console()
 
 @pool_app.command("list")
 @cli_errors
+@audited
 def pool_list(target: TargetOption = None) -> None:
     """List resource pools."""
     conn, _ = get_connection(target)
@@ -28,6 +29,7 @@ def pool_list(target: TargetOption = None) -> None:
 
 @pool_app.command("members")
 @cli_errors
+@audited
 def pool_members(poolid: str, target: TargetOption = None) -> None:
     """List members of a pool."""
     conn, _ = get_connection(target)

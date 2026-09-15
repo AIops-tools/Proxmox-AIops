@@ -6,7 +6,7 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
-from proxmox_aiops.cli._common import NodeOption, TargetOption, cli_errors, get_connection
+from proxmox_aiops.cli._common import NodeOption, TargetOption, audited, cli_errors, get_connection
 from proxmox_aiops.ops import firewall as fw
 
 firewall_app = typer.Typer(help="Firewall read operations.", no_args_is_help=True)
@@ -15,6 +15,7 @@ console = Console()
 
 @firewall_app.command("vm-rules")
 @cli_errors
+@audited
 def vm_rules(vmid: int, target: TargetOption = None, node: NodeOption = None) -> None:
     """List the firewall rules attached to a VM."""
     conn, _ = get_connection(target)
@@ -32,6 +33,7 @@ def vm_rules(vmid: int, target: TargetOption = None, node: NodeOption = None) ->
 
 @firewall_app.command("cluster-status")
 @cli_errors
+@audited
 def cluster_status(target: TargetOption = None) -> None:
     """Show cluster-wide firewall options (enabled, default policies)."""
     conn, _ = get_connection(target)

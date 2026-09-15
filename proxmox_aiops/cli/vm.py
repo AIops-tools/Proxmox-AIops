@@ -12,6 +12,7 @@ from proxmox_aiops.cli._common import (
     DryRunOption,
     NodeOption,
     TargetOption,
+    audited,
     checked,
     cli_errors,
     double_confirm,
@@ -27,6 +28,7 @@ console = Console()
 
 @vm_app.command("list")
 @cli_errors
+@audited
 def vm_list(target: TargetOption = None, node: NodeOption = None) -> None:
     """List VMs (name, vmid, status, cpu, mem)."""
     conn, _ = get_connection(target)
@@ -44,6 +46,7 @@ def vm_list(target: TargetOption = None, node: NodeOption = None) -> None:
 
 @vm_app.command("get")
 @cli_errors
+@audited
 def vm_get(vmid: int, target: TargetOption = None, node: NodeOption = None) -> None:
     """Show status detail for one VM."""
     conn, _ = get_connection(target)
@@ -116,6 +119,7 @@ def vm_snapshot_delete(
 
 @vm_app.command("snapshot-list")
 @cli_errors
+@audited
 def vm_snapshot_list(vmid: int, target: TargetOption = None, node: NodeOption = None) -> None:
     """List snapshots for a VM."""
     conn, _ = get_connection(target)
@@ -130,6 +134,7 @@ def vm_snapshot_list(vmid: int, target: TargetOption = None, node: NodeOption = 
 
 @vm_app.command("config")
 @cli_errors
+@audited
 def vm_config(vmid: int, target: TargetOption = None, node: NodeOption = None) -> None:
     """Show a VM's config (cores, memory, ostype, boot)."""
     conn, _ = get_connection(target)
@@ -319,6 +324,7 @@ def vm_move_disk(
 
 @vm_app.command("agent-ping")
 @cli_errors
+@audited
 def vm_agent_ping(vmid: int, target: TargetOption = None, node: NodeOption = None) -> None:
     """Ping a VM's QEMU guest agent (responsive / not)."""
     conn, _ = get_connection(target)

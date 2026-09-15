@@ -11,6 +11,7 @@ from proxmox_aiops.cli._common import (
     DryRunOption,
     NodeOption,
     TargetOption,
+    audited,
     checked,
     cli_errors,
     double_confirm,
@@ -39,6 +40,7 @@ def backup_create(
 
 @backup_app.command("list")
 @cli_errors
+@audited
 def backup_list(
     storage: str,
     vmid: int = typer.Option(None, "--vmid", help="Filter by guest id"),

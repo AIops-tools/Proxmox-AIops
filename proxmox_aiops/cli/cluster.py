@@ -6,7 +6,7 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
-from proxmox_aiops.cli._common import NodeOption, TargetOption, cli_errors, get_connection
+from proxmox_aiops.cli._common import NodeOption, TargetOption, audited, cli_errors, get_connection
 from proxmox_aiops.ops import cluster as cl
 
 cluster_app = typer.Typer(help="Cluster, node, and task operations.", no_args_is_help=True)
@@ -15,6 +15,7 @@ console = Console()
 
 @cluster_app.command("nodes")
 @cli_errors
+@audited
 def node_list(target: TargetOption = None) -> None:
     """List cluster nodes (status, cpu, mem, uptime)."""
     conn, _ = get_connection(target)
@@ -31,6 +32,7 @@ def node_list(target: TargetOption = None) -> None:
 
 @cluster_app.command("status")
 @cli_errors
+@audited
 def cluster_status(target: TargetOption = None) -> None:
     """Show cluster membership + quorum."""
     conn, _ = get_connection(target)
@@ -41,6 +43,7 @@ def cluster_status(target: TargetOption = None) -> None:
 
 @cluster_app.command("task-status")
 @cli_errors
+@audited
 def task_status(upid: str, target: TargetOption = None, node: NodeOption = None) -> None:
     """Poll an async task (clone/migrate/backup) by its UPID."""
     conn, _ = get_connection(target)
@@ -51,6 +54,7 @@ def task_status(upid: str, target: TargetOption = None, node: NodeOption = None)
 
 @cluster_app.command("resources")
 @cli_errors
+@audited
 def cluster_resources(
     resource_type: str = typer.Option(
         None, "--type", help="Filter: vm/node/storage"
@@ -72,6 +76,7 @@ def cluster_resources(
 
 @cluster_app.command("node-status")
 @cli_errors
+@audited
 def node_status(node: str, target: TargetOption = None) -> None:
     """Show detailed status for one node (cpu, load, memory, uptime)."""
     conn, _ = get_connection(target)
@@ -81,6 +86,7 @@ def node_status(node: str, target: TargetOption = None) -> None:
 
 @cluster_app.command("task-log")
 @cli_errors
+@audited
 def task_log(
     upid: str,
     limit: int = typer.Option(200, "--limit", help="Max log lines"),
@@ -103,6 +109,7 @@ def task_log(
 
 @cluster_app.command("next-vmid")
 @cli_errors
+@audited
 def next_vmid(target: TargetOption = None) -> None:
     """Get a free VMID for a new guest."""
     conn, _ = get_connection(target)

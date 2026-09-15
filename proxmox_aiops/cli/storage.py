@@ -6,7 +6,7 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
-from proxmox_aiops.cli._common import NodeOption, TargetOption, cli_errors, get_connection
+from proxmox_aiops.cli._common import NodeOption, TargetOption, audited, cli_errors, get_connection
 from proxmox_aiops.ops import storage as st
 
 storage_app = typer.Typer(help="Storage read operations.", no_args_is_help=True)
@@ -15,6 +15,7 @@ console = Console()
 
 @storage_app.command("list")
 @cli_errors
+@audited
 def storage_list(target: TargetOption = None, node: NodeOption = None) -> None:
     """List storage pools visible on a node."""
     conn, _ = get_connection(target)
@@ -32,6 +33,7 @@ def storage_list(target: TargetOption = None, node: NodeOption = None) -> None:
 
 @storage_app.command("content")
 @cli_errors
+@audited
 def storage_content(
     storage: str,
     content: str = typer.Option(None, "--content", help="Filter: iso/images/backup/vztmpl"),

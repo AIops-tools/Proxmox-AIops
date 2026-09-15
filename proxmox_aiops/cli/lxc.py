@@ -11,6 +11,7 @@ from proxmox_aiops.cli._common import (
     DryRunOption,
     NodeOption,
     TargetOption,
+    audited,
     checked,
     cli_errors,
     double_confirm,
@@ -25,6 +26,7 @@ console = Console()
 
 @ct_app.command("list")
 @cli_errors
+@audited
 def ct_list(target: TargetOption = None, node: NodeOption = None) -> None:
     """List LXC containers (name, vmid, status, cpu, mem)."""
     conn, _ = get_connection(target)

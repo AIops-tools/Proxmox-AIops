@@ -6,7 +6,7 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
-from proxmox_aiops.cli._common import TargetOption, cli_errors, get_connection
+from proxmox_aiops.cli._common import TargetOption, audited, cli_errors, get_connection
 from proxmox_aiops.ops import cluster as cl
 from proxmox_aiops.ops import diagnostics as diag
 
@@ -38,6 +38,7 @@ def _print_findings(findings: list[dict]) -> None:
 
 @diagnose_app.command("node-pressure")
 @cli_errors
+@audited
 def diagnose_node_pressure(target: TargetOption = None) -> None:
     """Rank nodes by CPU / memory / root-fs pressure (worst first)."""
     conn, _ = get_connection(target)
@@ -49,6 +50,7 @@ def diagnose_node_pressure(target: TargetOption = None) -> None:
 
 @diagnose_app.command("guest-health")
 @cli_errors
+@audited
 def diagnose_guest_health(target: TargetOption = None) -> None:
     """Scan VMs/containers for stopped guests, memory saturation, disks near full."""
     conn, _ = get_connection(target)

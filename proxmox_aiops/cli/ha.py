@@ -6,7 +6,7 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
-from proxmox_aiops.cli._common import TargetOption, cli_errors, get_connection
+from proxmox_aiops.cli._common import TargetOption, audited, cli_errors, get_connection
 from proxmox_aiops.ops import ha
 
 ha_app = typer.Typer(help="High-Availability read operations.", no_args_is_help=True)
@@ -15,6 +15,7 @@ console = Console()
 
 @ha_app.command("status")
 @cli_errors
+@audited
 def ha_status(target: TargetOption = None) -> None:
     """Show HA status (or a not-configured notice)."""
     conn, _ = get_connection(target)
@@ -30,6 +31,7 @@ def ha_status(target: TargetOption = None) -> None:
 
 @ha_app.command("resources")
 @cli_errors
+@audited
 def ha_resources(target: TargetOption = None) -> None:
     """List HA-managed resources."""
     conn, _ = get_connection(target)
