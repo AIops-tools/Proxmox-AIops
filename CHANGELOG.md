@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.13.3 — 2026-09-15
 
 ### Fixed
 - CLI commands that read the engine without calling an MCP tool now write an

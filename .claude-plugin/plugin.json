@@ -2,7 +2,7 @@
   "$schema": "https://anthropic.com/claude-code/plugin.schema.json",
   "name": "proxmox-aiops",
   "displayName": "Proxmox AIops",
-  "version": "0.13.2",
+  "version": "0.13.3",
   "description": "Governed Proxmox VE VM/container ops — 43 MCP tools with audit, budget, undo & risk-tier guards.",
   "author": {
     "name": "Wei Zhou",

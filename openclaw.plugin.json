@@ -11,7 +11,7 @@
       "command": "uvx",
       "args": [
         "--from",
-        "proxmox-aiops==0.13.2",
+        "proxmox-aiops==0.13.3",
         "proxmox-aiops-mcp"
       ]
     }

@@ -1,6 +1,6 @@
 {
   "name": "@zw008/proxmox-aiops",
-  "version": "0.13.2",
+  "version": "0.13.3",
   "description": "Governed Proxmox VE VM/container ops — 43 MCP tools with audit, budget, undo & risk-tier guards.",
   "private": true,
   "license": "MIT",
