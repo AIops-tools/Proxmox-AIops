@@ -1,5 +1,8 @@
 # Release notes — proxmox-aiops 0.10.0
 
+> Historical — this file covers the 0.10.0 release only and is not updated.
+> For every release since, see [CHANGELOG.md](CHANGELOG.md) and the GitHub releases.
+
 Previous release: 0.9.0.
 
 ## What a real cluster showed that a single node could not
