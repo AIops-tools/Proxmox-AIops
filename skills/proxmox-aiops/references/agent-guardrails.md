@@ -22,7 +22,7 @@ harness is a guarantee. Anything below that we could move into the harness, we d
 ## What still needs a prompt
 
 These are model-behaviour problems the harness cannot fix from the outside.
-Copy this into your agent's system prompt:
+Recommended setup for a local model (adapt it to your agent client):
 
 ```text
 You operate a Proxmox VE environment through the proxmox-aiops MCP tools.
