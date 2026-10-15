@@ -1,7 +1,7 @@
 """CLI confirmed-write path — past dry-run, through governance, onto disk.
 
 The CLI write commands delegate real execution to the ``@governed_tool``
-functions in ``mcp_server.tools``. These tests drive a write command PAST the
+functions in ``proxmox_aiops.mcp_server.tools``. These tests drive a write command PAST the
 dry-run branch and the double-confirm prompts and assert the call really went
 through the governed path (audit row on disk) — the regression test for the
 "CLI writes were unaudited" line-wide fix.
@@ -62,7 +62,7 @@ def test_cli_vm_stop_dry_run_writes_nothing_but_is_audited(gov_home, monkeypatch
     write would and leaves the same audit trail. The surviving prohibition is
     narrower than the old 'no call, no audit': no MUTATING verb may be issued.
     """
-    import mcp_server.tools.vm as gov_vm
+    import proxmox_aiops.mcp_server.tools.vm as gov_vm
     from proxmox_aiops.cli import app
 
     conn = _mock_vm_conn()
@@ -78,7 +78,7 @@ def test_cli_vm_stop_dry_run_writes_nothing_but_is_audited(gov_home, monkeypatch
 def test_cli_vm_stop_confirmed_goes_through_governance(gov_home, monkeypatch):
     """Confirmed CLI write must execute via the governed twin: the API call runs
     AND an audit row lands in audit.db (this is what the reroute fix bought)."""
-    import mcp_server.tools.vm as gov_vm
+    import proxmox_aiops.mcp_server.tools.vm as gov_vm
     from proxmox_aiops.cli import app
 
     conn = _mock_vm_conn()
@@ -91,7 +91,7 @@ def test_cli_vm_stop_confirmed_goes_through_governance(gov_home, monkeypatch):
 
 @pytest.mark.unit
 def test_cli_vm_stop_aborts_without_double_confirm(gov_home, monkeypatch):
-    import mcp_server.tools.vm as gov_vm
+    import proxmox_aiops.mcp_server.tools.vm as gov_vm
     from proxmox_aiops.cli import app
 
     conn = _mock_vm_conn()

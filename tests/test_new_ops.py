@@ -347,7 +347,7 @@ def test_agent_ping_responsive_and_absent():
 @pytest.mark.unit
 def test_backup_restore_mcp_tool_is_high_risk():
     """backup_restore is gated at the highest risk tier (overwrite is destructive)."""
-    from mcp_server.tools import backup as backup_tools
+    from proxmox_aiops.mcp_server.tools import backup as backup_tools
 
     assert backup_tools.backup_restore._is_governed_tool is True
     assert backup_tools.backup_restore._risk_level == "high"
@@ -357,7 +357,7 @@ def test_backup_restore_mcp_tool_is_high_risk():
 def test_backup_restore_undo_deletes_only_new_vm(monkeypatch):
     """Restoring into a free vmid records a vm_delete inverse via the harness."""
     import proxmox_aiops.governance.undo as undo_mod
-    from mcp_server.tools import backup as backup_tools
+    from proxmox_aiops.mcp_server.tools import backup as backup_tools
 
     conn = MagicMock(name="conn")
     conn.nodes.return_value.qemu.get.return_value = []  # vmid absent → new VM
@@ -388,7 +388,7 @@ def test_backup_restore_undo_deletes_only_new_vm(monkeypatch):
 def test_move_disk_undo_moves_back_to_source(monkeypatch):
     """vm_move_disk records a reverse move to the captured source storage."""
     import proxmox_aiops.governance.undo as undo_mod
-    from mcp_server.tools import disk as disk_tools
+    from proxmox_aiops.mcp_server.tools import disk as disk_tools
 
     conn = _conn_with_qemu()
     conn.nodes.return_value.qemu.return_value.config.get.return_value = {

@@ -183,7 +183,7 @@ def test_a_write_whose_task_failed_is_audited_as_error_with_no_undo(gov_home, mo
     """THE regression. Live, this exact sequence produced audit status=ok and an
     undo token with effect_verified=1 for a VM that never started — so
     ``undo_apply`` offered to stop something that was never running."""
-    from mcp_server.tools import vm as gov
+    from proxmox_aiops.mcp_server.tools import vm as gov
 
     monkeypatch.setattr(
         gov, "_get_connection",
@@ -204,7 +204,7 @@ def test_a_write_whose_task_is_unfinished_is_audited_unknown(gov_home, monkeypat
     """Long clones and backups legitimately outlast the wait budget. The honest
     answer is 'undetermined', and any undo token must say effect_verified=0 so
     nobody replays an inverse for a change that may not have happened."""
-    from mcp_server.tools import vm as gov
+    from proxmox_aiops.mcp_server.tools import vm as gov
 
     monkeypatch.setattr(gov, "_get_connection", lambda target=None: _vm_conn(None))
 
@@ -220,7 +220,7 @@ def test_a_write_whose_task_succeeded_still_audits_ok_with_a_verified_undo(
     gov_home, monkeypatch
 ):
     """The fix must not make honest successes look doubtful."""
-    from mcp_server.tools import vm as gov
+    from proxmox_aiops.mcp_server.tools import vm as gov
 
     monkeypatch.setattr(gov, "_get_connection", lambda target=None: _vm_conn("OK"))
 

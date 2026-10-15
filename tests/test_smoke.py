@@ -89,19 +89,19 @@ def test_all_modules_import():
         "proxmox_aiops.cli.firewall",
         "proxmox_aiops.cli.diagnostics",
         "proxmox_aiops.cli.doctor",
-        "mcp_server.server",
-        "mcp_server._shared",
-        "mcp_server.tools.vm",
-        "mcp_server.tools.cluster",
-        "mcp_server.tools.lxc",
-        "mcp_server.tools.storage",
-        "mcp_server.tools.backup",
-        "mcp_server.tools.disk",
-        "mcp_server.tools.ha",
-        "mcp_server.tools.pool",
-        "mcp_server.tools.firewall",
-        "mcp_server.tools.agent",
-        "mcp_server.tools.diagnostics",
+        "proxmox_aiops.mcp_server.server",
+        "proxmox_aiops.mcp_server._shared",
+        "proxmox_aiops.mcp_server.tools.vm",
+        "proxmox_aiops.mcp_server.tools.cluster",
+        "proxmox_aiops.mcp_server.tools.lxc",
+        "proxmox_aiops.mcp_server.tools.storage",
+        "proxmox_aiops.mcp_server.tools.backup",
+        "proxmox_aiops.mcp_server.tools.disk",
+        "proxmox_aiops.mcp_server.tools.ha",
+        "proxmox_aiops.mcp_server.tools.pool",
+        "proxmox_aiops.mcp_server.tools.firewall",
+        "proxmox_aiops.mcp_server.tools.agent",
+        "proxmox_aiops.mcp_server.tools.diagnostics",
     ):
         importlib.import_module(name)
 
@@ -174,7 +174,7 @@ def test_cli_leaf_help_triggers_lazy_imports():
 
 @pytest.mark.unit
 def test_mcp_list_tools_exposes_expected_tools():
-    from mcp_server.server import mcp
+    from proxmox_aiops.mcp_server.server import mcp
 
     tools = asyncio.run(mcp.list_tools())
     names = {t.name for t in tools}
@@ -188,7 +188,7 @@ def test_registered_tool_count_is_pinned():
     This is the number an MCP client lists, including the generic governance
     tools ``undo_list`` / ``undo_apply``.
     """
-    from mcp_server import _shared
+    from proxmox_aiops.mcp_server import _shared
 
     assert len(_shared.mcp._tool_manager._tools) == 43, (
         "tool count changed — update README/SKILL/server.json too"
@@ -198,7 +198,7 @@ def test_registered_tool_count_is_pinned():
 @pytest.mark.unit
 def test_every_mcp_tool_is_governed_by_harness():
     """Every registered tool callable must carry the @governed_tool marker."""
-    from mcp_server import _shared
+    from proxmox_aiops.mcp_server import _shared
 
     # FastMCP keeps the registered callables in its tool manager.
     tool_objs = _shared.mcp._tool_manager._tools
@@ -219,7 +219,7 @@ def test_write_tool_records_undo_token_via_harness(monkeypatch):
     undo lambda on success and persists the inverse to the undo store.
     """
     import proxmox_aiops.governance.undo as undo_mod
-    from mcp_server.tools import vm as vm_tools
+    from proxmox_aiops.mcp_server.tools import vm as vm_tools
 
     # Mock the proxmoxer connection used by the tool.
     conn = MagicMock(name="conn")
@@ -253,7 +253,7 @@ def test_write_tool_records_undo_token_via_harness(monkeypatch):
 def test_reconfigure_undo_restores_previous_values(monkeypatch):
     """vm_reconfigure's undo descriptor restores the captured prior cores/memory."""
     import proxmox_aiops.governance.undo as undo_mod
-    from mcp_server.tools import vm as vm_tools
+    from proxmox_aiops.mcp_server.tools import vm as vm_tools
 
     conn = MagicMock(name="conn")
     conn.nodes.return_value.qemu.get.return_value = [{"vmid": 100, "name": "x"}]
@@ -308,7 +308,7 @@ def test_risk_level_agrees_with_read_write_docstring_tag():
     16 such mislabels line-wide once, so it is kept even though read-only mode
     (its original motivation) is gone.
     """
-    from mcp_server import server
+    from proxmox_aiops.mcp_server import server
 
     untagged, mismatched = [], []
     for name, tool in server.mcp._tool_manager._tools.items():

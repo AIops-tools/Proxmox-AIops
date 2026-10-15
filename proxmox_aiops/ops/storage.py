@@ -7,7 +7,7 @@ from typing import Any
 from proxmox_aiops.connection import get_default_node
 from proxmox_aiops.governance import opt_str
 
-# Single shared exception type: cli/_common.py and mcp_server/_shared.py catch
+# Single shared exception type: cli/_common.py and proxmox_aiops/mcp_server/_shared.py catch
 # the vm_lifecycle class — a local duplicate here would dodge those handlers
 # and dump raw tracebacks (the storage-list-without-node bug).
 from proxmox_aiops.ops.vm_lifecycle import NodeRequiredError

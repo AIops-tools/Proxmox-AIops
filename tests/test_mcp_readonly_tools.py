@@ -9,9 +9,9 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from mcp_server.tools import agent as agent_tools
-from mcp_server.tools import backup as backup_tools
-from mcp_server.tools import cluster as cluster_tools
+from proxmox_aiops.mcp_server.tools import agent as agent_tools
+from proxmox_aiops.mcp_server.tools import backup as backup_tools
+from proxmox_aiops.mcp_server.tools import cluster as cluster_tools
 
 # ─── cluster read tools ──────────────────────────────────────────────────────
 

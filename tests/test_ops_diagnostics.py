@@ -124,7 +124,7 @@ def test_guest_health_disk_near_full_is_critical_over_95():
 
 @pytest.mark.unit
 def test_mcp_node_pressure_rca_collects_and_is_governed(monkeypatch):
-    from mcp_server.tools import diagnostics as tools
+    from proxmox_aiops.mcp_server.tools import diagnostics as tools
 
     assert tools.node_pressure_rca._is_governed_tool is True
     conn = MagicMock(name="conn")
@@ -148,7 +148,7 @@ def test_mcp_node_pressure_rca_collects_and_is_governed(monkeypatch):
 
 @pytest.mark.unit
 def test_mcp_guest_health_rca_filters_to_guests(monkeypatch):
-    from mcp_server.tools import diagnostics as tools
+    from proxmox_aiops.mcp_server.tools import diagnostics as tools
 
     conn = MagicMock(name="conn")
     conn.cluster.resources.get.return_value = [

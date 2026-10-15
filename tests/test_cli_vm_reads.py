@@ -123,13 +123,13 @@ def test_vm_agent_ping_not_responding(monkeypatch):
 def _patch_governed_conn(monkeypatch, conn: MagicMock) -> None:
     """Put the mock on the GOVERNED path too.
 
-    The rerouted dry-run branches call the twins in ``mcp_server.tools``, which
-    resolve their connection through ``mcp_server._shared._get_connection`` —
+    The rerouted dry-run branches call the twins in ``proxmox_aiops.mcp_server.tools``, which
+    resolve their connection through ``proxmox_aiops.mcp_server._shared._get_connection`` —
     not the CLI module's ``get_connection``. Patching only the latter would make
     every no-mutation assertion below vacuously true.
     """
-    import mcp_server.tools.disk as disk_tools
-    import mcp_server.tools.vm as vm_tools
+    import proxmox_aiops.mcp_server.tools.disk as disk_tools
+    import proxmox_aiops.mcp_server.tools.vm as vm_tools
 
     for mod in (vm_tools, disk_tools):
         monkeypatch.setattr(mod, "_get_connection", lambda target=None: conn)

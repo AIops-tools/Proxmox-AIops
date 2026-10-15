@@ -29,9 +29,9 @@ from conftest import assert_no_mutating_call, mock_task
 import proxmox_aiops.governance.audit as audit_mod
 import proxmox_aiops.governance.policy as policy_mod
 import proxmox_aiops.governance.undo as undo_mod
-from mcp_server.tools import disk as disk_tools
-from mcp_server.tools import lxc as lxc_tools
-from mcp_server.tools import vm as vm_tools
+from proxmox_aiops.mcp_server.tools import disk as disk_tools
+from proxmox_aiops.mcp_server.tools import lxc as lxc_tools
+from proxmox_aiops.mcp_server.tools import vm as vm_tools
 
 
 def _audit_tools(home) -> list[str]:

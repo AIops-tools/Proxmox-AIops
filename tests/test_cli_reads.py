@@ -291,7 +291,7 @@ def test_cli_backup_restore_dry_run_reads_and_audits_but_never_restores(monkeypa
     """`backup restore --dry-run` now routes through the governed twin (was a
     hardcoded, unaudited banner): the preview READS whether the target vmid
     exists (to run the same existing-VM guard), audits, and issues no restore."""
-    import mcp_server.tools.backup as backup_tools
+    import proxmox_aiops.mcp_server.tools.backup as backup_tools
 
     conn = MagicMock()
     conn.nodes.return_value.qemu.get.return_value = []  # vmid 101 absent → would create
@@ -317,7 +317,7 @@ def test_cli_backup_restore_dry_run_refuses_overwrite_without_force_nonzero(
     """The point of routing the preview through the twin: previewing a restore
     that would OVERWRITE an existing VM without --force refuses (exit non-zero),
     exactly as the real restore would, instead of a green banner."""
-    import mcp_server.tools.backup as backup_tools
+    import proxmox_aiops.mcp_server.tools.backup as backup_tools
 
     conn = MagicMock()
     conn.nodes.return_value.qemu.get.return_value = [{"vmid": 101}]  # already exists
@@ -338,7 +338,7 @@ def test_cli_backup_restore_dry_run_refuses_overwrite_without_force_nonzero(
 @pytest.mark.unit
 def test_cli_ct_stop_dry_run_writes_nothing_but_is_audited(monkeypatch, tmp_path):
     """The rerouted container preview: governed, audited, mutates nothing."""
-    import mcp_server.tools.lxc as lxc_tools
+    import proxmox_aiops.mcp_server.tools.lxc as lxc_tools
 
     conn = MagicMock()
     conn.nodes.return_value.lxc.get.return_value = [{"vmid": 200, "name": "ct"}]

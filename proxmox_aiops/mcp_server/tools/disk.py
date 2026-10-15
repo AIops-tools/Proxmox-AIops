@@ -7,8 +7,8 @@ token when the source storage is known.
 
 from typing import Optional
 
-from mcp_server._shared import _get_connection, mcp, tool_errors
 from proxmox_aiops.governance import governed_tool
+from proxmox_aiops.mcp_server._shared import _get_connection, mcp, tool_errors
 from proxmox_aiops.ops import disk as dk
 
 

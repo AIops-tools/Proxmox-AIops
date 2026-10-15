@@ -6,7 +6,6 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
-from mcp_server.tools import backup as gov
 from proxmox_aiops.cli._common import (
     DryRunOption,
     NodeOption,
@@ -18,6 +17,7 @@ from proxmox_aiops.cli._common import (
     dry_run_preview,
     get_connection,
 )
+from proxmox_aiops.mcp_server.tools import backup as gov
 from proxmox_aiops.ops import backup as bk
 
 backup_app = typer.Typer(help="Backup (vzdump) operations.", no_args_is_help=True)

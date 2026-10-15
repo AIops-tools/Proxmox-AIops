@@ -2,7 +2,7 @@
 
 Portable across the whole tool line: references ONLY
 ``proxmox_aiops.governance.patterns`` and binds state to an isolated home via
-``PROXMOX_AIOPS_HOME``. No ops / cli / connection / mcp_server imports.
+``PROXMOX_AIOPS_HOME``. No ops / cli / connection / proxmox_aiops.mcp_server imports.
 
 Exercises pattern loading + signature validation, the armable preconditions,
 skill/tool/target matching, rate limiting, the circuit breaker's state

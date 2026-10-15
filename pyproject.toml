@@ -36,10 +36,10 @@ dev = [
 
 [project.scripts]
 proxmox-aiops = "proxmox_aiops.cli:app"
-proxmox-aiops-mcp = "mcp_server.server:main"
+proxmox-aiops-mcp = "proxmox_aiops.mcp_server.server:main"
 
 [tool.hatch.build.targets.wheel]
-packages = ["proxmox_aiops", "mcp_server"]
+packages = ["proxmox_aiops"]
 
 [tool.ruff]
 line-length = 100
@@ -55,7 +55,7 @@ select = ["E", "F", "I", "N", "W", "UP"]
 "proxmox_aiops/governance/*.py" = ["E501", "N818"]
 # MCP server files are reflected by FastMCP/Pydantic; PEP 604 unions (X | None)
 # crash on older mcp/pydantic, so they intentionally use Optional[X].
-"mcp_server/**/*.py" = ["UP007", "UP045"]
+"proxmox_aiops/mcp_server/**/*.py" = ["UP007", "UP045"]
 # The MCP entry keeps an explicit Python-version guard even though the declared
 # minimum is already 3.11.
 "proxmox_aiops/cli/_root.py" = ["UP036"]

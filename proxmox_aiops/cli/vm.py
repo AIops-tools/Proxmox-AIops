@@ -6,8 +6,6 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
-from mcp_server.tools import disk as gov_disk
-from mcp_server.tools import vm as gov
 from proxmox_aiops.cli._common import (
     DryRunOption,
     NodeOption,
@@ -19,6 +17,8 @@ from proxmox_aiops.cli._common import (
     dry_run_preview,
     get_connection,
 )
+from proxmox_aiops.mcp_server.tools import disk as gov_disk
+from proxmox_aiops.mcp_server.tools import vm as gov
 from proxmox_aiops.ops import agent as ag
 from proxmox_aiops.ops import vm_lifecycle as vl
 

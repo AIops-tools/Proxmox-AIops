@@ -127,7 +127,7 @@ def test_real_write_tool_persists_priorstate_undo(gov_home, monkeypatch):
     reconfigure on disk."""
     monkeypatch.setenv("PROXMOX_AUDIT_APPROVED_BY", "ops-alice")
 
-    from mcp_server.tools import vm as gov
+    from proxmox_aiops.mcp_server.tools import vm as gov
 
     conn = MagicMock(name="conn")
     conn.nodes.return_value.qemu.get.return_value = [{"vmid": 100, "name": "web"}]
