@@ -31,6 +31,8 @@ compatibility: >
 
 # Proxmox AIops
 
+> **Audit availability:** Real writes require a durable audit intent. Reads and previews can continue if audit storage fails; check the warning and audit health before relying on their audit trail.
+
 > **Disclaimer**: This is a community-maintained open-source project and is **not affiliated with, endorsed by, or sponsored by Proxmox Server Solutions GmbH.** "Proxmox" is a trademark of its owner. Source code is publicly auditable at [github.com/AIops-tools/Proxmox-AIops](https://github.com/AIops-tools/Proxmox-AIops) under the MIT license.
 
 Governed VM and container lifecycle operations for Proxmox VE — **43 MCP tools**, every one wrapped with the bundled `@governed_tool` harness: a local unified audit log under `~/.proxmox-aiops/`, token/runaway budget guard, undo-token recording, and descriptive risk-tier labels.
@@ -209,7 +211,7 @@ permitted. That is your agent's judgement, or the permission of the account you 
 use a Proxmox VE user or API token granted only read privileges (no VM.*/Datastore.* write roles),
 and writes then fail at the server. There is no read-only switch, policy file, or approval gate.
 
-- **Audit is the guarantee, and it is not bypassable.** Every operation — MCP and CLI alike — is logged to `~/.proxmox-aiops/audit.db` (relocatable via `PROXMOX_AIOPS_HOME`): params, result, status, duration, and the risk tier. The CLI writes the same row the MCP path does.
+- **Audit is the guarantee, and it is not bypassable.** Every operation — MCP and CLI alike — is logged to `~/.proxmox-aiops/audit.db` (relocatable via `PROXMOX_AIOPS_HOME`): params, outcome summary, status, duration, and the risk tier. The CLI writes the same row the MCP path does.
 - `PROXMOX_AUDIT_APPROVED_BY` / `PROXMOX_AUDIT_RATIONALE` are optional annotations recorded on the audit row (who/why); they are never required and never block.
 - **Runaway guard** — a safety backstop, not authorization: the same call looped in a tight window trips a circuit breaker. Disable with `PROXMOX_RUNAWAY_MAX=0`; optional hard ceilings via `PROXMOX_MAX_TOOL_CALLS` / `PROXMOX_MAX_TOOL_SECONDS`.
 - Undo store records inverse descriptors for reversible writes (start/stop/shutdown/reconfigure/clone/migrate/snapshot-create, container start/stop).
