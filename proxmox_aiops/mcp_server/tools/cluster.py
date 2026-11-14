@@ -112,7 +112,11 @@ def task_log(
 def next_vmid(target: Optional[str] = None) -> dict:
     """[READ] Return a free VMID for a new guest (/cluster/nextid).
 
+    Use immediately before a VM or container create call. This is a candidate ID,
+    not a reservation: another creator may take it before the create request.
+    Returns ``{"vmid": int}``; the create operation must handle an ID conflict.
+
     Args:
-        target: Proxmox target name from config.
+        target: Proxmox target name from config; omit for the default.
     """
     return cl.next_vmid(_get_connection(target))

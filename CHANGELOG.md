@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.16.1 — 2026-11-14
+
+- Explain that `next_vmid` is an unreserved candidate and document its result in the MCP description.
+
 ## v0.16.0 — 2026-10-30
 
 ### Security and observability (BREAKING)
